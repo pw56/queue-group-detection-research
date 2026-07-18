@@ -3,7 +3,7 @@ name: Build Source Codes
 on:
   push:
     paths:
-      - 'src/**'
+      - 'listings/**'
   workflow_dispatch:
 
 # GitHub Pages へのデプロイに必要な権限を設定
@@ -14,7 +14,7 @@ permissions:
 
 defaults:
   run:
-    working-directory: ./src
+    working-directory: ./listings
 
 jobs:
   build-and-deploy:
@@ -27,7 +27,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           cache: 'npm'
-          cache-dependency-path: './src/package-lock.json'
+          cache-dependency-path: './listings/package-lock.json'
 
       - name: Install dependencies
         run: npm ci
@@ -39,7 +39,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: './src/dist'
+          path: './listings/dist'
 
       # 2. GitHub Pages へのデプロイ
       - name: Deploy to GitHub Pages
