@@ -77,6 +77,7 @@ const App = () => {
               ref={imageRef}
               src={mediaSrc}
               alt="uploaded"
+              className="w-1/2 h-full object-contain"
             />
           )}
 
@@ -88,13 +89,16 @@ const App = () => {
               muted
               autoPlay
               playsInline
+              className="w-1/2 h-full object-contain"
             />
           )}
           
         </>
       )}
 
-      <nav>
+      {/* flex-col を追加して中の要素を強制的に改行 */}
+      {/* navの横幅を画面の半分にし、境界が中央にくるように調整 */}
+      <nav className="flex flex-col w-1/2 items-center justify-center">
         
         {/* ファイル入力（画面上部に配置） */}
         <input 
