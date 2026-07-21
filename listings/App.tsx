@@ -70,11 +70,21 @@ const App = () => {
       
       {/* ファイル入力 */}
       {!mediaSrc && (
-        <input 
-          type="file" 
-          accept="image/*,video/*" 
-          onChange={handleFileChange}
-        />
+        <>
+          <input 
+            id="file-upload"
+            type="file" 
+            accept="image/*,video/*" 
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          <label 
+            htmlFor="file-upload" 
+            className="absolute inset-0 m-auto h-fit w-fit cursor-pointer select-none border border-gray-400 bg-white px-4 py-2 rounded shadow hover:bg-gray-50 text-gray-700"
+          >
+            ファイルを選択
+          </label>
+        </>
       )}
 
       {mediaSrc && (
