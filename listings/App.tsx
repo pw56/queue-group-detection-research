@@ -68,35 +68,43 @@ const App = () => {
     /* 元のCSS設定（透明背景、中央配置、スクロールバー非表示、フォント） */
     <main className="flex h-screen w-screen items-center justify-center bg-transparent overflow-hidden font-sans">
       
-      {/* 入力データ(画像) */}
-      {mediaType === 'image' && mediaSrc && (
-        <img
-          ref={imageRef}
-          src={mediaSrc}
-          alt="uploaded"
-        />
-      )}
+      {mediaSrc &&
 
-      {/* 入力データ(動画) */}
-      {mediaType === 'video' && mediaSrc && (
-        <video
-          ref={videoRef}
-          src={mediaSrc}
-          muted
-          autoPlay
-          playsInline
-        />
-      )}
+        {/* 入力データ(画像) */}
+        {mediaType === 'image' && (
+          <img
+            ref={imageRef}
+            src={mediaSrc}
+            alt="uploaded"
+          />
+        )}
 
-      {/* ファイル入力（画面上部に配置） */}
-      <input 
-        type="file" 
-        accept="image/*,video/*" 
-        onChange={handleFileChange}
-      />
-      
-      {/* グループ数表示コンポーネント */}
-      <span>検出されたグループ数: {pairs}</span>
+        {/* 入力データ(動画) */}
+        {mediaType === 'video' && (
+          <video
+            ref={videoRef}
+            src={mediaSrc}
+            muted
+            autoPlay
+            playsInline
+          />
+        )}
+        
+      }
+
+      <nav>
+        
+        {/* ファイル入力（画面上部に配置） */}
+        <input 
+          type="file" 
+          accept="image/*,video/*" 
+          onChange={handleFileChange}
+        />
+        
+        {/* グループ数表示コンポーネント */}
+        <span>検出されたグループ数: {pairs}</span>
+
+      </nav>
     </main>
   );
 }
