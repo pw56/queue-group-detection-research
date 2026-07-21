@@ -99,7 +99,6 @@ const App = () => {
           ref={imageRef}
           src={mediaSrc}
           alt="uploaded"
-          className="absolute top-0 left-0 opacity-1 pointer-events-none"
         />
       )}
 
@@ -111,7 +110,6 @@ const App = () => {
           muted
           autoPlay
           playsInline
-          className="absolute top-0 left-0 opacity-1 pointer-events-none"
         />
       )}
     </main>
