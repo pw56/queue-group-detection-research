@@ -96,7 +96,7 @@ const App = () => {
               ref={imageRef}
               src={mediaSrc}
               alt="uploaded"
-              className="w-1/2 h-full object-contain"
+              className="w-2/3 h-full object-contain"
             />
           )}
 
@@ -108,13 +108,13 @@ const App = () => {
               muted
               autoPlay
               playsInline
-              className="w-1/2 h-full object-contain"
+              className="w-2/3 h-full object-contain"
             />
           )}
           
           {/* flex-col を追加して中の要素を強制的に改行 */}
           {/* navの横幅を画面の半分にし、境界が中央にくるように調整 */}
-          <nav className="flex flex-col w-1/2 items-start justify-center">
+          <nav className="flex flex-col w-1/3 items-start justify-center">
             
             {/* グループ数表示 */}
             <span>検出されたグループ数: {pairs}</span>
