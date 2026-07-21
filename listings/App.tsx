@@ -68,6 +68,15 @@ const App = () => {
     /* 元のCSS設定（透明背景、中央配置、スクロールバー非表示、フォント） */
     <main className="flex h-screen w-screen items-center justify-center bg-transparent overflow-hidden font-sans">
       
+      {/* ファイル入力 */}
+      {!mediaSrc && (
+        <input 
+          type="file" 
+          accept="image/*,video/*" 
+          onChange={handleFileChange}
+        />
+      )}
+
       {mediaSrc && (
         <>
 
@@ -93,24 +102,16 @@ const App = () => {
             />
           )}
           
+          {/* flex-col を追加して中の要素を強制的に改行 */}
+          {/* navの横幅を画面の半分にし、境界が中央にくるように調整 */}
+          <nav className="flex flex-col w-1/2 items-start justify-center">
+            
+            {/* グループ数表示 */}
+            <span>検出されたグループ数: {pairs}</span>
+          </nav>
+
         </>
       )}
-
-      {/* flex-col を追加して中の要素を強制的に改行 */}
-      {/* navの横幅を画面の半分にし、境界が中央にくるように調整 */}
-      <nav className="flex flex-col w-1/2 items-start justify-center">
-        
-        {/* ファイル入力（画面上部に配置） */}
-        <input 
-          type="file" 
-          accept="image/*,video/*" 
-          onChange={handleFileChange}
-        />
-        
-        {/* グループ数表示コンポーネント */}
-        <span>検出されたグループ数: {pairs}</span>
-
-      </nav>
     </main>
   );
 }
