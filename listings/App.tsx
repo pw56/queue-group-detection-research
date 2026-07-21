@@ -68,29 +68,31 @@ const App = () => {
     /* 元のCSS設定（透明背景、中央配置、スクロールバー非表示、フォント） */
     <main className="flex h-screen w-screen items-center justify-center bg-transparent overflow-hidden font-sans">
       
-      {mediaSrc &&
+      {mediaSrc && (
+        <>
 
-        {/* 入力データ(画像) */}
-        {mediaType === 'image' && (
-          <img
-            ref={imageRef}
-            src={mediaSrc}
-            alt="uploaded"
-          />
-        )}
+          {/* 入力データ(画像) */}
+          {mediaType === 'image' && (
+            <img
+              ref={imageRef}
+              src={mediaSrc}
+              alt="uploaded"
+            />
+          )}
 
-        {/* 入力データ(動画) */}
-        {mediaType === 'video' && (
-          <video
-            ref={videoRef}
-            src={mediaSrc}
-            muted
-            autoPlay
-            playsInline
-          />
-        )}
-        
-      }
+          {/* 入力データ(動画) */}
+          {mediaType === 'video' && (
+            <video
+              ref={videoRef}
+              src={mediaSrc}
+              muted
+              autoPlay
+              playsInline
+            />
+          )}
+          
+        </>
+      )}
 
       <nav>
         
