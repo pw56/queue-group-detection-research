@@ -1,11 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './global.css';
-import PairCountDisplay from './components/PairCountDisplay';
 import countPairs from './utils/countPairs';
 
 const App = () => {
   const [pairs, setPairs] = useState<number>(0);
-  const [statusText, setStatusText] = useState<string>("ファイルをアップロードしてください");
   
   // アップロードされたメディアの管理用
   const [mediaSrc, setMediaSrc] = useState<string | null>(null);
@@ -25,13 +23,10 @@ const App = () => {
 
     if (file.type.startsWith('image/')) {
       setMediaType('image');
-      setStatusText("画像を解析中...");
     } else if (file.type.startsWith('video/')) {
       setMediaType('video');
-      setStatusText("動画を解析中...");
     } else {
       setMediaType(null);
-      setStatusText("対応していないファイル形式です");
     }
   };
 
@@ -40,7 +35,6 @@ const App = () => {
     const timer = setInterval(async () => {
       // 画像が読み込まれている場合
       if (mediaType === 'image' && imageRef.current) {
-        setStatusText("");
         const pairCount = await countPairs(imageRef.current);
         setPairs(pairCount);
       }
@@ -50,7 +44,6 @@ const App = () => {
         // メモリ上のcanvasを作成して動画の現在のフレームを描画し、Imageオブジェクトに変換して渡す
         const video = videoRef.current;
         if (video.readyState >= 2) { // HAVE_CURRENT_DATA 以上
-          setStatusText("");
           const canvas = document.createElement('canvas');
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
@@ -75,25 +68,7 @@ const App = () => {
     /* 元のCSS設定（透明背景、中央配置、スクロールバー非表示、フォント） */
     <main className="flex h-screen w-screen items-center justify-center bg-transparent overflow-hidden font-sans">
       
-      {/* 状態テキスト */}
-      {statusText && (
-        <p className="absolute top-10 text-gray-400 text-sm animate-pulse">{statusText}</p>
-      )}
-
-      {/* ファイル入力（画面上部に配置） */}
-      <div className="absolute top-20 z-10">
-        <input 
-          type="file" 
-          accept="image/*,video/*" 
-          onChange={handleFileChange} 
-          className="text-sm text-gray-400"
-        />
-      </div>
-
-      {/* グループ数表示コンポーネント */}
-      <PairCountDisplay count={pairs} />
-
-      {/* 画像要素の隠しレンダリング */}
+      {/* 入力データ(画像) */}
       {mediaType === 'image' && mediaSrc && (
         <img
           ref={imageRef}
@@ -102,7 +77,7 @@ const App = () => {
         />
       )}
 
-      {/* 動画要素の隠しレンダリング */}
+      {/* 入力データ(動画) */}
       {mediaType === 'video' && mediaSrc && (
         <video
           ref={videoRef}
@@ -112,6 +87,16 @@ const App = () => {
           playsInline
         />
       )}
+
+      {/* ファイル入力（画面上部に配置） */}
+      <input 
+        type="file" 
+        accept="image/*,video/*" 
+        onChange={handleFileChange}
+      />
+      
+      {/* グループ数表示コンポーネント */}
+      <span>検出されたグループ数: {pairs}</span>
     </main>
   );
 }
