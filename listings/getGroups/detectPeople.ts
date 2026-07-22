@@ -22,7 +22,7 @@ async function initializeDetector(): Promise<void> {
 }
 
 // 人物の検出
-async function detectPeople(imageSource: TexImageSource): Promise<Detection[]> {
+export async function detectPeople(imageSource: TexImageSource): Promise<Detection[]> {
 
   // 初期化
   if (!objectDetector)
@@ -46,5 +46,3 @@ async function detectPeople(imageSource: TexImageSource): Promise<Detection[]> {
     throw new Error("Detection error", { cause: error });
   }
 }
-
-export default detectPeople;

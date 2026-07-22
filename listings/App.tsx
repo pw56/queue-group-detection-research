@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './global.css';
-import getPairs from './getPairs';
+import { getGroups, Groups } from './getGroups';
 import { MediaCanvas } from './MediaCanvas';
-import { Detection } from '@mediapipe/tasks-vision';
 
 const App = () => {
   // アップロードされたメディアの管理用
@@ -15,7 +14,7 @@ const App = () => {
   
   // 合成結果表示用
   const [mediaFrame, setMediaFrame] = useState<CanvasImageSource | null>(null);
-  const [detections, setDetections] = useState<Detection[]>([]);
+  const [groups, setGroups] = useState<Groups>([]);
   
   // ファイル選択時のハンドラ
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -39,9 +38,9 @@ const App = () => {
     const timer = setInterval(async () => {
       // 画像が読み込まれている場合
       if (mediaType === 'image' && imageRef.current) {
-        const detectedPairs: Detection[] = await getPairs(imageRef.current);
+        const detectedGroups = await getGroups(imageRef.current);
         setMediaFrame(imageRef.current);
-        setDetections(detectedPairs);
+        setGroups(detectedGroups);
       }
       
       // 動画が読み込まれている場合
@@ -58,9 +57,9 @@ const App = () => {
             const img = new Image();
             img.src = canvas.toDataURL('image/jpeg');
             img.onload = async () => {
-              const detectedPairs: Detection[] = await getPairs(img);
+              const detectedGroups = await getGroups(img);
               setMediaFrame(img);
-              setDetections(detectedPairs);
+              setGroups(detectedGroups);
             };
           }
         }
@@ -121,7 +120,7 @@ const App = () => {
           {/* 合成表示用のCanvasコンポーネント（DRY原則に基づき共通化） */}
           <MediaCanvas 
             mediaSource={mediaFrame} 
-            detections={detections}
+            groups={groups}
             className="w-2/3 h-full object-contain"
           />
           
@@ -130,7 +129,7 @@ const App = () => {
           <nav className="flex flex-col w-1/3 items-center justify-center">
             
             {/* グループ数表示 */}
-            <span>検出されたグループ数: {detections.length}</span>
+            <span>検出されたグループ数: {groups.length}</span>
           </nav>
 
         </>
