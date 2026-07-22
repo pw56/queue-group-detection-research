@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './global.css';
-import countPairs from './utils/countPairs';
+import countPairs from './countPairs';
 
 const App = () => {
   const [pairs, setPairs] = useState<number>(0);
