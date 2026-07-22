@@ -1,8 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './global.css';
-import countPairs from './countPairs';
+import getPairs from './getPairs';
+import { Detection } from '@mediapipe/tasks-vision';
 
 const App = () => {
+  const [detections, setDetections] = useState<Detection[]>([]);
+
   const [pairs, setPairs] = useState<number>(0);
   
   // アップロードされたメディアの管理用
@@ -12,6 +15,9 @@ const App = () => {
   // ループ処理で参照するためのRef
   const imageRef = useRef<HTMLImageElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  // 画面に表示する合成用CanvasのRef
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // ファイル選択時のハンドラ
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -35,8 +41,8 @@ const App = () => {
     const timer = setInterval(async () => {
       // 画像が読み込まれている場合
       if (mediaType === 'image' && imageRef.current) {
-        const pairCount = await countPairs(imageRef.current);
-        setPairs(pairCount);
+        const detectedPairs: Detection[] = await getPairs(imageRef.current);
+        setPairs(detectedPairs.length);
       }
       
       // 動画が読み込まれている場合
@@ -53,8 +59,8 @@ const App = () => {
             const img = new Image();
             img.src = canvas.toDataURL('image/jpeg');
             img.onload = async () => {
-              const pairCount = await countPairs(img);
-              setPairs(pairCount);
+              const detectedPairs: Detection[] = await getPairs(img);
+              setPairs(detectedPairs.length);
             };
           }
         }
