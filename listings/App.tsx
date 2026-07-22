@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import './global.css';
 import { getGroups, Groups } from './getGroups';
 import { MediaCanvas } from './MediaCanvas';
+import { videoToImageAsync } from './videoToImageAsync';
 
 const App = () => {
   // アップロードされたメディアの管理用
@@ -17,10 +18,36 @@ const App = () => {
   const [groups, setGroups] = useState<Groups>([]);
   
   // ファイル選択時のハンドラ
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // 動画の長さチェック(ガード節)
+    if (file.type.startsWith('video/')) {
+      const isTooLong = await new Promise<boolean>((resolve) => {
+        const videoElement = document.createElement('video');
+        videoElement.preload = 'metadata';
+        videoElement.src = URL.createObjectURL(file);
+        
+        videoElement.onloadedmetadata = () => {
+          URL.revokeObjectURL(videoElement.src); // 一時URLの即時解放
+          resolve(videoElement.duration > 999);
+        };
+
+        // エラーハンドリング（破損ファイルなど）
+        videoElement.onerror = () => {
+          URL.revokeObjectURL(videoElement.src);
+          resolve(true); // 安全のためエラー時も弾く
+        };
+      });
+
+      if (isTooLong) {
+        alert('999秒を超える動画はアップロードできません。');
+        e.target.value = ''; // 選択されたファイルをリセット
+        return; // 処理を中断
+      }
+    }
+    
     const url = URL.createObjectURL(file);
     setMediaSrc(url);
 
@@ -32,6 +59,13 @@ const App = () => {
       setMediaType(null);
     }
   };
+
+  // メモリリーク対策：アンマウント時にオブジェクトURLを解放
+  useEffect(() => {
+    return () => {
+      if (mediaSrc) URL.revokeObjectURL(mediaSrc);
+    };
+  }, [mediaSrc]);
 
   // 1秒ごとにメディアからデータを取得してグループ数検出メソッドに流すタイマー
   useEffect(() => {
@@ -48,20 +82,10 @@ const App = () => {
         // メモリ上のcanvasを作成して動画の現在のフレームを描画し、Imageオブジェクトに変換して渡す
         const video = videoRef.current;
         if (video.readyState >= 2) { // HAVE_CURRENT_DATA 以上
-          const canvas = document.createElement('canvas');
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const img = new Image();
-            img.src = canvas.toDataURL('image/jpeg');
-            img.onload = async () => {
-              const detectedGroups = await getGroups(img);
-              setMediaFrame(img);
-              setGroups(detectedGroups);
-            };
-          }
+          const img = await videoToImageAsync(video); // 実験結果出力に含める
+          const detectedGroups = await getGroups(img!);
+          setMediaFrame(img);
+          setGroups(detectedGroups);
         }
       }
     }, 1000); // 1秒ごと

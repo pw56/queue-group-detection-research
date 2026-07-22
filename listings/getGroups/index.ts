@@ -1,9 +1,9 @@
-import { Groups } from './types';
+import { Groups, GroupDetectionImageSource } from './types';
 import { detectPeople } from './detectPeople';
 import { convertToGroups } from './convertToGroups';
 
 // グループの検出 (人物をグループに見せかけてそのまま返す)
-export async function getGroups(imageSource: TexImageSource): Promise<Groups> {
+export async function getGroups(imageSource: GroupDetectionImageSource): Promise<Groups> {
 
   if (!imageSource) throw new Error("No input data exists");
 
