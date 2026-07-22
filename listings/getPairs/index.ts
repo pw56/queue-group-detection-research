@@ -22,14 +22,14 @@ async function initializeDetector(): Promise<void> {
 }
 
 // グループ数の検出 (人数をそのまま返す)
-async function countPairs(imageSource: TexImageSource): Promise<number> {
+async function getPairs(imageSource: TexImageSource): Promise<Detection[]> {
 
   // 初期化
   if (!objectDetector)
     await initializeDetector();
 
   // 入力が存在しない場合は終了
-  if (!imageSource) return 0;
+  if (!imageSource) throw new Error("No input data exists");
 
   try {
     const result = objectDetector!.detect(imageSource);
@@ -37,15 +37,15 @@ async function countPairs(imageSource: TexImageSource): Promise<number> {
     const people = result.detections.filter((detection: Detection) => {
       return detection.categories.some((category: Category) => {
         // 信頼度（スコア）が50%以上の人物のみに絞り込む
-        return category.categoryName === 'person' && category.score > 0.5;
+        return category.categoryName === 'person' && category.score >= 0.5;
       });
     });
 
-    return people.length;
+    return people;
   } catch (error) {
     console.error("Detection error:", error);
-    return 0;
+    throw new Error("Detection error");
   }
 }
 
-export default countPairs;
+export default getPairs;
