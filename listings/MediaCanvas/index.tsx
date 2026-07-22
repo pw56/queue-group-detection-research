@@ -1,13 +1,14 @@
-import React, { useEffect, useRef } from 'react';
-import { Detection } from '@mediapipe/tasks-vision';
+import { useEffect, useRef } from 'react';
+import { Groups } from '../getGroups';
+import { createParentBoundingBox } from './createParentBoundingBox';
 
 export const MediaCanvas = ({
   mediaSource,
-  detections,
+  groups,
   className
 }: {
   mediaSource: CanvasImageSource | null;
-  detections: Detection[];
+  groups: Groups;
   className: string;
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -34,16 +35,37 @@ export const MediaCanvas = ({
     // 2. メディアを直接描画
     ctx.drawImage(mediaSource, 0, 0);
 
-    // 3. 赤色のbboxを合成
+    // 3. bboxを合成
     ctx.strokeStyle = 'red';
     ctx.lineWidth = 3;
-    detections.forEach((det) => {
-      if (det.boundingBox) {
-        const { originX, originY, width: w, height: h } = det.boundingBox;
-        ctx.strokeRect(originX, originY, w, h);
+    groups.forEach((group) => {
+
+      // グループのbboxを描画
+      if (group.every((person) => person.boundingBox)) {
+        const groupBbox = createParentBoundingBox(group)!; // if文合格したなら大丈夫
+        const { originX, originY, width: w, height: h } = groupBbox;
+        const offsetX = ctx.lineWidth,
+              offsetY = ctx.lineWidth;
+        ctx.strokeStyle = 'red';
+        ctx.strokeRect(
+          originX - offsetX,
+          originY - offsetY,
+          w + offsetX * 2,
+          h + offsetY * 2
+        );
       }
+
+      // グループに含まれる人物のbboxを描画
+      group.forEach((person) => {
+        if (person.boundingBox) {
+          const { originX, originY, width: w, height: h } = person.boundingBox;
+          ctx.strokeStyle = 'green';
+          ctx.strokeRect(originX, originY, w, h);
+        }
+      });
+
     });
-  }, [mediaSource, detections]);
+  }, [mediaSource, groups]);
 
   return <canvas ref={canvasRef} className={className} />;
 };

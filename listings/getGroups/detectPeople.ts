@@ -21,8 +21,8 @@ async function initializeDetector(): Promise<void> {
   }
 }
 
-// グループ数の検出 (人数をそのまま返す)
-async function getPairs(imageSource: TexImageSource): Promise<Detection[]> {
+// 人物の検出
+export async function detectPeople(imageSource: TexImageSource): Promise<Detection[]> {
 
   // 初期化
   if (!objectDetector)
@@ -36,16 +36,13 @@ async function getPairs(imageSource: TexImageSource): Promise<Detection[]> {
     
     const people = result.detections.filter((detection: Detection) => {
       return detection.categories.some((category: Category) => {
-        // 信頼度（スコア）が50%以上の人物のみに絞り込む
-        return category.categoryName === 'person' && category.score >= 0.5;
+        // 信頼度（スコア）で人物のみに絞り込む
+        return category.categoryName === 'person' && category.score >= 0.1;
       });
     });
 
     return people;
   } catch (error) {
-    console.error("Detection error:", error);
-    throw new Error("Detection error");
+    throw new Error("Detection error", { cause: error });
   }
 }
-
-export default getPairs;
