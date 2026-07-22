@@ -37,7 +37,7 @@ async function getPairs(imageSource: TexImageSource): Promise<Detection[]> {
     const people = result.detections.filter((detection: Detection) => {
       return detection.categories.some((category: Category) => {
         // 信頼度（スコア）で人物のみに絞り込む
-        return category.categoryName === 'person' && category.score >= 0.3;
+        return category.categoryName === 'person' && category.score >= 0.1;
       });
     });
 
