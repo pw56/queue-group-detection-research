@@ -1,13 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './global.css';
 import getPairs from './getPairs';
+import { MediaCanvas } from './MediaCanvas';
 import { Detection } from '@mediapipe/tasks-vision';
 
 const App = () => {
-  const [detections, setDetections] = useState<Detection[]>([]);
-
-  const [pairs, setPairs] = useState<number>(0);
-  
   // アップロードされたメディアの管理用
   const [mediaSrc, setMediaSrc] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
@@ -15,10 +12,11 @@ const App = () => {
   // ループ処理で参照するためのRef
   const imageRef = useRef<HTMLImageElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-
-  // 画面に表示する合成用CanvasのRef
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
+  
+  // 合成結果表示用
+  const [mediaFrame, setMediaFrame] = useState<CanvasImageSource | null>(null);
+  const [detections, setDetections] = useState<Detection[]>([]);
+  
   // ファイル選択時のハンドラ
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -42,7 +40,8 @@ const App = () => {
       // 画像が読み込まれている場合
       if (mediaType === 'image' && imageRef.current) {
         const detectedPairs: Detection[] = await getPairs(imageRef.current);
-        setPairs(detectedPairs.length);
+        setMediaFrame(imageRef.current);
+        setDetections(detectedPairs);
       }
       
       // 動画が読み込まれている場合
@@ -60,7 +59,8 @@ const App = () => {
             img.src = canvas.toDataURL('image/jpeg');
             img.onload = async () => {
               const detectedPairs: Detection[] = await getPairs(img);
-              setPairs(detectedPairs.length);
+              setMediaFrame(img);
+              setDetections(detectedPairs);
             };
           }
         }
@@ -102,7 +102,7 @@ const App = () => {
               ref={imageRef}
               src={mediaSrc}
               alt="uploaded"
-              className="w-2/3 h-full object-contain"
+              className="absolute top-0 left-0 opacity-1 pointer-events-none"
             />
           )}
 
@@ -114,16 +114,23 @@ const App = () => {
               muted
               autoPlay
               playsInline
-              className="w-2/3 h-full object-contain"
+              className="absolute top-0 left-0 opacity-1 pointer-events-none"
             />
           )}
+
+          {/* 合成表示用のCanvasコンポーネント（DRY原則に基づき共通化） */}
+          <MediaCanvas 
+            mediaSource={mediaFrame} 
+            detections={detections}
+            className="w-2/3 h-full object-contain"
+          />
           
           {/* flex-col を追加して中の要素を強制的に改行 */}
           {/* navの横幅を画面の半分にし、境界が中央にくるように調整 */}
           <nav className="flex flex-col w-1/3 items-center justify-center">
             
             {/* グループ数表示 */}
-            <span>検出されたグループ数: {pairs}</span>
+            <span>検出されたグループ数: {detections.length}</span>
           </nav>
 
         </>

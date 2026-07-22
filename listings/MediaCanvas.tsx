@@ -1,31 +1,40 @@
 import React, { useEffect, useRef } from 'react';
 import { Detection } from '@mediapipe/tasks-vision';
 
-interface MediaCanvasProps {
-  mediaSrc: string;
-  mediaType: 'image' | 'video';
+export const MediaCanvas = ({
+  mediaSource,
+  detections,
+  className
+}: {
+  mediaSource: CanvasImageSource | null;
   detections: Detection[];
-}
-
-export const MediaCanvas: React.FC<MediaCanvasProps> = ({ mediaSrc, mediaType, detections }) => {
+  className: string;
+}) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const imageRef = useRef<HTMLImageElement | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  // 共通の描画処理（DRY）
-  const draw = (mediaElement: HTMLImageElement | HTMLVideoElement, width: number, height: number) => {
+  useEffect(() => {
+    if (!mediaSource) return;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    // 1. メディアの実際のサイズを取得してCanvasをリサイズ
+    // (Image, Video, Canvas それぞれの幅・高さのプロパティに対応)
+    const width = (mediaSource as HTMLVideoElement).videoWidth || (mediaSource as HTMLImageElement).naturalWidth || (mediaSource as HTMLCanvasElement).width || 0;
+    const height = (mediaSource as HTMLVideoElement).videoHeight || (mediaSource as HTMLImageElement).naturalHeight || (mediaSource as HTMLCanvasElement).height || 0;
+
+    if (width === 0 || height === 0) return;
+
     canvas.width = width;
     canvas.height = height;
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // 1. メディアを描画
-    ctx.drawImage(mediaElement, 0, 0);
+    // 2. メディアを直接描画
+    ctx.drawImage(mediaSource, 0, 0);
 
-    // 2. 赤色のbboxを合成
+    // 3. 赤色のbboxを合成
     ctx.strokeStyle = 'red';
     ctx.lineWidth = 3;
     detections.forEach((det) => {
@@ -34,48 +43,7 @@ export const MediaCanvas: React.FC<MediaCanvasProps> = ({ mediaSrc, mediaType, d
         ctx.strokeRect(originX, originY, w, h);
       }
     });
-  };
+  }, [mediaSource, detections]);
 
-  // 検出結果(detections)やメディアの変更を検知して再描画
-  useEffect(() => {
-    if (mediaType === 'image' && imageRef.current) {
-      const img = imageRef.current;
-      if (img.complete) {
-        draw(img, img.naturalWidth, img.naturalHeight);
-      } else {
-        img.onload = () => draw(img, img.naturalWidth, img.naturalHeight);
-      }
-    }
-  }, [detections, mediaSrc, mediaType]);
-
-  // 動画の場合は常時（再生中）描画を更新するためのループ
-  useEffect(() => {
-    if (mediaType !== 'video' || !videoRef.current) return;
-
-    let animationFrameId: number;
-    const video = videoRef.current;
-
-    const renderLoop = () => {
-      if (video.readyState >= 2) {
-        draw(video, video.videoWidth, video.videoHeight);
-      }
-      animationFrameId = requestAnimationFrame(renderLoop);
-    };
-
-    renderLoop();
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [detections, mediaSrc, mediaType]);
-
-  return (
-    <>
-      {mediaType === 'image' && (
-        <img ref={imageRef} src={mediaSrc} alt="source" className="hidden" />
-      )}
-      {mediaType === 'video' && (
-        <video ref={videoRef} src={mediaSrc} muted autoPlay playsInline loop className="hidden" />
-      )}
-      {/* 元のメディアと同じスタイルを適用 */}
-      <canvas ref={canvasRef} className="w-2/3 h-full object-contain" />
-    </>
-  );
+  return <canvas ref={canvasRef} className={className} />;
 };
