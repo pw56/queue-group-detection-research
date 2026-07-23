@@ -77,20 +77,40 @@ const App = () => {
     };
   }, [mediaSrc]);
 
-  // 1秒ごとにメディアからデータを取得してグループ数検出メソッドに流すタイマー
+  // 画像用の1回限りの処理
   useEffect(() => {
-    const timer = setInterval(async () => {
-      // 画像が読み込まれている場合
-      if (mediaType === 'image' && imageRef.current) {
-        const detectedGroups = await getGroups(imageRef.current);
+    if (mediaType === 'image' && imageRef.current) {
+      const processImage = async () => {
+        const detectedGroups = await getGroups(imageRef.current!);
         setMediaFrame(imageRef.current);
         setGroups(detectedGroups);
-      }
+      };
       
-      // 動画が読み込まれている場合
-      if (mediaType === 'video' && videoRef.current) {
-        // メモリ上のcanvasを作成して動画の現在のフレームを描画し、Imageオブジェクトに変換して渡す
-        const video = videoRef.current;
+      // 画像の読み込み完了を待って処理、または既に読み込み済みの場合は即時実行
+      if (imageRef.current.complete) {
+        processImage();
+      } else {
+        imageRef.current.onload = processImage;
+      }
+    }
+  }, [mediaType, mediaSrc]);
+
+  // 1秒ごとにメディアからデータを取得してグループ数検出メソッドに流すタイマー
+  useEffect(() => {
+    if (mediaType !== 'video' || !videoRef.current) return;
+
+    const video = videoRef.current;
+    let lastProcessedTime = -1;
+
+    const handleTimeUpdate = async () => {
+      // 動画の現在の再生時間を秒単位（整数）で取得
+      const currentTimeFloor = Math.floor(video.currentTime);
+
+      // 前回の処理から動画の尺が1秒進んだか判定
+      if (currentTimeFloor > lastProcessedTime) {
+        lastProcessedTime = currentTimeFloor;
+
+        // 動画が読み込まれている場合
         if (video.readyState >= 2) { // HAVE_CURRENT_DATA 以上
           const img = await videoToImageAsync(video); // 実験結果出力に含める
           const detectedGroups = await getGroups(img!);
@@ -98,10 +118,13 @@ const App = () => {
           setGroups(detectedGroups);
         }
       }
-    }, 1000); // 1秒ごと
+    };
 
-    return () => clearInterval(timer);
-  }, [mediaType]);
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    return () => {
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+    };
+  }, [mediaType, mediaSrc]);
 
   return (
     /* 元のCSS設定（透明背景、中央配置、スクロールバー非表示、フォント） */
