@@ -1,7 +1,12 @@
-export function videoToImageAsync(
+export function videoToImageAsync({
+  video,
+  mime = 'image/png',
+  quality // qualityは 0.0 から 1.0 の間で指定（例: 0.8）
+}: {
   video: HTMLVideoElement,
-  quality?: number // qualityは 0.0 から 1.0 の間で指定（例: 0.8）
-): Promise<HTMLImageElement | null> {
+  mime?: 'image/png' | 'image/jpeg' | 'image/webp',
+  quality?: number
+}): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     // 動画が未読み込みの場合は即座にnullを返す
     if (video.videoWidth === 0 || video.videoHeight === 0) {
@@ -28,6 +33,6 @@ export function videoToImageAsync(
     img.onerror = () => resolve(null);
     
     // データURLを代入して読み込みを開始させる
-    img.src = canvas.toDataURL('image/jpeg', quality);
+    img.src = canvas.toDataURL(mime, quality);
   });
 }
