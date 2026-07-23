@@ -2,15 +2,11 @@ import { useEffect, useRef } from 'react';
 import { Groups } from '../getGroups';
 import { createParentBoundingBox } from './createParentBoundingBox';
 
-export const MediaCanvas = ({
-  mediaSource,
-  groups,
-  className
-}: {
-  mediaSource: CanvasImageSource | null;
-  groups: Groups;
-  className: string;
-}) => {
+export const MediaCanvas = (
+  mediaSource: CanvasImageSource | null,
+  groups: Groups,
+  className: string
+) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
