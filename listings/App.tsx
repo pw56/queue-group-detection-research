@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import './global.css';
 import { getGroups, Groups } from './getGroups';
 import { MediaCanvas } from './MediaCanvas';
-import { videoToImageAsync } from './videoToImageAsync';
+import { videoToImageAsync } from './videoToImage';
 
 const App = () => {
   // アップロードされたメディアの管理用
