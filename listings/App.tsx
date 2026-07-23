@@ -3,6 +3,13 @@ import './global.css';
 import { getGroups, Groups } from './getGroups';
 import { MediaCanvas } from './MediaCanvas';
 import { videoToImageAsync } from './videoToImage';
+import {
+  addInputMediaFile,
+  addExtractedFrameAsPng,
+  addAnnotatedImageAsPng,
+  addObjectAsJson,
+  downloadZip
+} from './exportExperimentData';
 
 const App = () => {
   // アップロードされたメディアの管理用
@@ -50,6 +57,9 @@ const App = () => {
     
     const url = URL.createObjectURL(file);
     setMediaSrc(url);
+
+    // ここで実験結果として入力された画像・動画をZipに投げる
+    addInputMediaFile(file);
 
     if (file.type.startsWith('image/')) {
       setMediaType('image');
