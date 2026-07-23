@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import './global.css';
 import { getGroups, Groups } from './getGroups';
 import { MediaCanvas } from './MediaCanvas';
-import { videoToImageAsync } from './videoToImage';
+import { imageToBlobAsync, videoToImageAsync, canvasToBlob } from './toImage';
 import {
   addInputMediaFile,
   addExtractedFrameAsPng,
@@ -10,6 +10,9 @@ import {
   addObjectAsJson,
   downloadZip
 } from './exportExperimentData';
+
+// 仮のタイムスタンプ、あとで直す
+const timestamp = 1;
 
 const App = () => {
   // アップロードされたメディアの管理用
@@ -83,7 +86,9 @@ const App = () => {
       const processImage = async () => {
         const detectedGroups = await getGroups(imageRef.current!);
         setMediaFrame(imageRef.current);
+        addExtractedFrameAsPng(await imageToBlobAsync(imageRef.current!, 'image/png') as Blob, timestamp);
         setGroups(detectedGroups);
+        addObjectAsJson(detectedGroups, timestamp);
       };
       
       // 画像の読み込み完了を待って処理、または既に読み込み済みの場合は即時実行
@@ -115,7 +120,9 @@ const App = () => {
           const img = await videoToImageAsync(video); // 実験結果出力に含める
           const detectedGroups = await getGroups(img!);
           setMediaFrame(img);
+          addExtractedFrameAsPng(await imageToBlobAsync(img!, 'image/png') as Blob, timestamp);
           setGroups(detectedGroups);
+          addObjectAsJson(detectedGroups, timestamp);
         }
       }
     };
@@ -178,6 +185,11 @@ const App = () => {
           <MediaCanvas 
             mediaSource={mediaFrame} 
             groups={groups}
+            onCanvasGenerated={(canvas) => {
+              (async () => {
+                addAnnotatedImageAsPng(await canvasToBlob(canvas, 'image/png') as Blob, timestamp);
+              })();
+            }}
             className="w-2/3 h-full object-contain"
           />
           
