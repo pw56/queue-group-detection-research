@@ -5,7 +5,7 @@ import { createParentBoundingBox } from './createParentBoundingBox';
 export const MediaCanvas = (
   mediaSource: CanvasImageSource | null,
   groups: Groups,
-  className: string
+  className?: string
 ) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
