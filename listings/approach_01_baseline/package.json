@@ -21,6 +21,7 @@
     "vitest": "^4.1.10"
   },
   "scripts": {
+    "dev": "vite --open",
     "build": "vite build"
   }
 }
