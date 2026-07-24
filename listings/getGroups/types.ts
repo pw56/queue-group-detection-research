@@ -1,6 +1,7 @@
 import { Detection } from '@mediapipe/tasks-vision';
 
-type Group = Detection['boundingBox'][];
+// BoundingBox型から 'angle' プロパティだけを除外した配列型にする
+type Group = Omit<Detection['boundingBox'], 'angle'>[];
 type Groups = Group[];
 
 type GroupDetectionImageSource =
