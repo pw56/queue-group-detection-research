@@ -1,4 +1,4 @@
-name: Build Approach 1
+name: Build approach_01_baseline
 
 on:
   push:
