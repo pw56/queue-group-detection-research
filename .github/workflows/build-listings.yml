@@ -1,10 +1,9 @@
-# name: Build Ver.1
-name: Build listings
+name: Build Approach 1
 
 on:
   push:
     paths:
-      - 'listings/**'
+      - 'listings/approach_01_baseline/**'
 
 # GitHub Pages へのデプロイに必要な権限を設定
 permissions:
@@ -16,4 +15,4 @@ jobs:
   build-and-deploy:
     uses: ./.github/workflows/build-and-deploy.yml
     with:
-      directory: ./listings
+      directory: ./listings/approach_01_baseline
