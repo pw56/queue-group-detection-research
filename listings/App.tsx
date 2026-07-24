@@ -189,7 +189,10 @@ const App = () => {
             groups={groups}
             onCanvasGenerated={(canvas) => {
               (async () => {
-                addAnnotatedImageAsPng(await canvasToBlob(canvas, 'image/png') as Blob, videoTimestamp);
+                addAnnotatedImageAsPng(
+                  await canvasToBlob(canvas, 'image/png') as Blob,
+                  mediaType === 'image' ? 1 : videoTimestamp // 画像だったら `1` で固定
+                );
               })();
             }}
             className="w-2/3 h-full object-contain"
