@@ -1,4 +1,5 @@
 import { ObjectDetector, FilesetResolver, Detection, Category } from '@mediapipe/tasks-vision';
+import { GroupDetectionImageSource } from './types';
 
 let objectDetector: ObjectDetector | null = null;
 
@@ -22,7 +23,7 @@ async function initializeDetector(): Promise<void> {
 }
 
 // 人物の検出
-export async function detectPeople(imageSource: TexImageSource): Promise<Detection[]> {
+export async function detectPeople(imageSource: GroupDetectionImageSource): Promise<Detection[]> {
 
   // 初期化
   if (!objectDetector)

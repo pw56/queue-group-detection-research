@@ -2,6 +2,19 @@ import React, { useEffect, useRef, useState } from 'react';
 import './global.css';
 import { getGroups, Groups } from './getGroups';
 import { MediaCanvas } from './MediaCanvas';
+import { imageToBlobAsync, videoToImageAsync, canvasToBlob } from './toImage';
+import {
+  addInputMediaFile,
+  addExtractedFrameAsPng,
+  addAnnotatedImageAsPng,
+  addObjectAsJson,
+  downloadZip
+} from './exportExperimentData';
+
+// 動画用のグローバルなタイムスタンプ
+// 動画のEffect内の変数だとバウンディングボックスの方で使えないのでグローバル
+let videoTimestamp: number = -1;
+const imageTimestamp: number = 0; // 画像のタイムスタンプは固定
 
 const App = () => {
   // アップロードされたメディアの管理用
@@ -17,12 +30,41 @@ const App = () => {
   const [groups, setGroups] = useState<Groups>([]);
   
   // ファイル選択時のハンドラ
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // 動画の長さチェック(ガード節)
+    if (file.type.startsWith('video/')) {
+      const isTooLong = await new Promise<boolean>((resolve) => {
+        const videoElement = document.createElement('video');
+        videoElement.preload = 'metadata';
+        videoElement.src = URL.createObjectURL(file);
+        
+        videoElement.onloadedmetadata = () => {
+          URL.revokeObjectURL(videoElement.src); // 一時URLの即時解放
+          resolve(videoElement.duration > 999);
+        };
+
+        // エラーハンドリング（破損ファイルなど）
+        videoElement.onerror = () => {
+          URL.revokeObjectURL(videoElement.src);
+          resolve(true); // 安全のためエラー時も弾く
+        };
+      });
+
+      if (isTooLong) {
+        alert('999秒を超える動画はアップロードできません。');
+        e.target.value = ''; // 選択されたファイルをリセット
+        return; // 処理を中断
+      }
+    }
+    
     const url = URL.createObjectURL(file);
     setMediaSrc(url);
+
+    // ここで実験結果として入力された画像・動画をZipに投げる
+    addInputMediaFile(file);
 
     if (file.type.startsWith('image/')) {
       setMediaType('image');
@@ -33,41 +75,65 @@ const App = () => {
     }
   };
 
+  // メモリリーク対策：アンマウント時にオブジェクトURLを解放
+  useEffect(() => {
+    return () => {
+      if (mediaSrc) URL.revokeObjectURL(mediaSrc);
+    };
+  }, [mediaSrc]);
+
+  // 画像用の1回限りの処理
+  useEffect(() => {
+    if (mediaType === 'image' && imageRef.current) {
+      const processImage = async () => {
+        const detectedGroups = await getGroups(imageRef.current!);
+        
+        setMediaFrame(imageRef.current);
+        addExtractedFrameAsPng(await imageToBlobAsync(imageRef.current!, 'image/png') as Blob, imageTimestamp);
+        setGroups(detectedGroups);
+        addObjectAsJson(detectedGroups, imageTimestamp);
+      };
+      
+      // 画像の読み込み完了を待って処理、または既に読み込み済みの場合は即時実行
+      if (imageRef.current.complete) {
+        processImage();
+      } else {
+        imageRef.current.onload = processImage;
+      }
+    }
+  }, [mediaType, mediaSrc]);
+
   // 1秒ごとにメディアからデータを取得してグループ数検出メソッドに流すタイマー
   useEffect(() => {
-    const timer = setInterval(async () => {
-      // 画像が読み込まれている場合
-      if (mediaType === 'image' && imageRef.current) {
-        const detectedGroups = await getGroups(imageRef.current);
-        setMediaFrame(imageRef.current);
-        setGroups(detectedGroups);
-      }
-      
-      // 動画が読み込まれている場合
-      if (mediaType === 'video' && videoRef.current) {
-        // メモリ上のcanvasを作成して動画の現在のフレームを描画し、Imageオブジェクトに変換して渡す
-        const video = videoRef.current;
+    if (mediaType !== 'video' || !videoRef.current) return;
+
+    const video = videoRef.current;
+
+    const handleTimeUpdate = async () => {
+      // 動画の現在の再生時間を秒単位（整数）で取得
+      const currentTimeFloor = Math.floor(video.currentTime);
+
+      // 前回の処理から動画の尺が1秒進んだか判定
+      if (currentTimeFloor > videoTimestamp) {
+        videoTimestamp = currentTimeFloor;
+
+        // 動画が読み込まれている場合
         if (video.readyState >= 2) { // HAVE_CURRENT_DATA 以上
-          const canvas = document.createElement('canvas');
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const img = new Image();
-            img.src = canvas.toDataURL('image/jpeg');
-            img.onload = async () => {
-              const detectedGroups = await getGroups(img);
-              setMediaFrame(img);
-              setGroups(detectedGroups);
-            };
-          }
+          const img = await videoToImageAsync(video); // 実験結果出力に含める
+          const detectedGroups = await getGroups(img!);
+          setMediaFrame(img);
+          addExtractedFrameAsPng(await imageToBlobAsync(img!, 'image/png') as Blob, videoTimestamp);
+          setGroups(detectedGroups);
+          addObjectAsJson(detectedGroups, videoTimestamp);
         }
       }
-    }, 1000); // 1秒ごと
+    };
 
-    return () => clearInterval(timer);
-  }, [mediaType]);
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    return () => {
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+    };
+  }, [mediaType, mediaSrc]);
 
   return (
     /* 元のCSS設定（透明背景、中央配置、スクロールバー非表示、フォント） */
@@ -121,6 +187,14 @@ const App = () => {
           <MediaCanvas 
             mediaSource={mediaFrame} 
             groups={groups}
+            onCanvasGenerated={(canvas) => {
+              (async () => {
+                addAnnotatedImageAsPng(
+                  await canvasToBlob(canvas, 'image/png') as Blob,
+                  mediaType === 'image' ? imageTimestamp : videoTimestamp
+                );
+              })();
+            }}
             className="w-2/3 h-full object-contain"
           />
           
@@ -130,6 +204,13 @@ const App = () => {
             
             {/* グループ数表示 */}
             <span>検出されたグループ数: {groups.length}</span>
+
+            {/* 実験結果のダウンロード */}
+            <button
+              onClick={() => downloadZip('experimental_results.zip')}
+              className="bg-blue-500 hover:bg-blue-700 active:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            >実験結果をダウンロード</button>
+
           </nav>
 
         </>

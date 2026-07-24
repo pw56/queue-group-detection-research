@@ -5,11 +5,13 @@ import { createParentBoundingBox } from './createParentBoundingBox';
 export const MediaCanvas = ({
   mediaSource,
   groups,
+  onCanvasGenerated,
   className
 }: {
   mediaSource: CanvasImageSource | null;
   groups: Groups;
-  className: string;
+  onCanvasGenerated?: (canvas: HTMLCanvasElement) => void;
+  className?: string;
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -65,6 +67,10 @@ export const MediaCanvas = ({
       });
 
     });
+
+    // 受け取りハンドラが指定されていたら、合成された画像のキャンバスを転送
+    if(onCanvasGenerated) onCanvasGenerated(canvas);
+
   }, [mediaSource, groups]);
 
   return <canvas ref={canvasRef} className={className} />;
