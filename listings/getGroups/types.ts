@@ -1,6 +1,6 @@
 import { Detection } from '@mediapipe/tasks-vision';
 
-type Group = Detection[];
+type Group = Detection['boundingBox'][];
 type Groups = Group[];
 
 type GroupDetectionImageSource =

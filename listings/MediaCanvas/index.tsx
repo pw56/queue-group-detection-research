@@ -43,7 +43,7 @@ export const MediaCanvas = ({
     groups.forEach((group) => {
 
       // グループのbboxを描画
-      if (group.every((person) => person.boundingBox)) {
+      if (group.every((person) => person)) {
         const groupBbox = createParentBoundingBox(group)!; // if文合格したなら大丈夫
         const { originX, originY, width: w, height: h } = groupBbox;
         const offsetX = ctx.lineWidth,
@@ -59,8 +59,8 @@ export const MediaCanvas = ({
 
       // グループに含まれる人物のbboxを描画
       group.forEach((person) => {
-        if (person.boundingBox) {
-          const { originX, originY, width: w, height: h } = person.boundingBox;
+        if (person) {
+          const { originX, originY, width: w, height: h } = person;
           ctx.strokeStyle = 'green';
           ctx.strokeRect(originX, originY, w, h);
         }

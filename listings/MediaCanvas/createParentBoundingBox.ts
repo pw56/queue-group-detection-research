@@ -19,7 +19,7 @@ export function createParentBoundingBox(people: Group): BoundingBox | null {
   let validBBoxCount = 0;
 
   for (const person of people) {
-    const bbox = person.boundingBox;
+    const bbox = person;
     if (!bbox) continue;
 
     validBBoxCount++;
