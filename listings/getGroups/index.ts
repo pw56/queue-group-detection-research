@@ -8,7 +8,12 @@ export async function getGroups(imageSource: GroupDetectionImageSource): Promise
   if (!imageSource) throw new Error("No input data exists");
 
   try {
-    const people = await detectPeople(imageSource);
+    const detections = await detectPeople(imageSource);
+    const people = detections.map(detection => {
+      // boundingBoxから angle を取り出し、残りを rest（新しいオブジェクト）に格納
+      const { angle, ...rest } = detection.boundingBox!;
+      return rest; // angleが含まれないオブジェクトのコピーを返す
+    });
     const groups = convertToGroups(people);
     return groups;
   } catch (error) {
