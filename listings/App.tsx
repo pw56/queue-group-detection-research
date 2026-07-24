@@ -206,7 +206,10 @@ const App = () => {
             <span>検出されたグループ数: {groups.length}</span>
 
             {/* 実験結果のダウンロード */}
-            <button onClick={() => downloadZip('experimental_results.zip')}>実験結果をダウンロード</button>
+            <button
+              onClick={() => downloadZip('experimental_results.zip')}
+              className="bg-blue-500 hover:bg-blue-700 active:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            >実験結果をダウンロード</button>
 
           </nav>
 
