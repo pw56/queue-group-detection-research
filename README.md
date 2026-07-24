@@ -7,7 +7,7 @@
 論文内で考案したグループ検出のアプローチの挙動を、ブラウザ上で検証できるデモページです。
 ローカルでの環境構築を必要とせず、各アプローチによる検出結果の違いを確認できます。
 
-- **アプローチ1 (ベースライン手法)**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/listings/approach_01_baseline/)
+- **アプローチ1 (ベースライン手法)**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_01_baseline/)
 
 ## 推奨環境
 ### 論文執筆
@@ -27,11 +27,11 @@ latexmk -lualatex main.tex
 ```
 
 ### デモページのビルド
-デモ用のReactアプリをローカル環境で動かす場合は、各アプローチのディレクトリ（例: `listings/approach_01_baseline`）に移動し、以下のコマンドを実行してください。
+デモ用のReactアプリをローカル環境で動かす場合は、各アプローチのディレクトリ（例: `src/approach_01_baseline`）に移動し、以下のコマンドを実行してください。
 
 ```bash
 # 対象のディレクトリへ移動
-cd listings/approach_01_baseline
+cd src/approach_01_baseline
 
 # 依存パッケージのインストール
 npm install

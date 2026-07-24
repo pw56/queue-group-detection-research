@@ -19,6 +19,6 @@ my-latex-project/
 │   ├── workflow.pdf      # ベクター画像（PDF形式がベスト）
 │   └── chart.png         # ラスター画像（PNG形式）
 │
-└── listings/             # プログラムのソースコードを外部参照する場合のフォルダ
+└── src/             # プログラムのソースコードを外部参照する場合のフォルダ
     └── algorithm.py      # \lstinputlisting 等で読み込むコード
 ```
