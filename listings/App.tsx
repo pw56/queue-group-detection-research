@@ -1,15 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './global.css';
 import { getGroups, Groups } from './getGroups';
-import { MediaCanvas } from './MediaCanvas';
-import { imageToBlobAsync, videoToImageAsync, canvasToBlob } from './toImage';
+import { MediaCanvas } from './components/MediaCanvas';
+import { imageToBlobAsync, videoToImageAsync, canvasToBlob } from './utils/toImage';
 import {
   addInputMediaFile,
   addExtractedFrameAsPng,
   addAnnotatedImageAsPng,
   addObjectAsJson,
   downloadZip
-} from './exportExperimentData';
+} from './utils/exportExperimentData';
 
 // 動画用のグローバルなタイムスタンプ
 // 動画のEffect内の変数だとバウンディングボックスの方で使えないのでグローバル
