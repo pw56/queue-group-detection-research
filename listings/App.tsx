@@ -14,6 +14,7 @@ import {
 // 動画用のグローバルなタイムスタンプ
 // 動画のEffect内の変数だとバウンディングボックスの方で使えないのでグローバル
 let videoTimestamp: number = -1;
+const imageTimestamp: number = 0; // 画像のタイムスタンプは固定
 
 const App = () => {
   // アップロードされたメディアの管理用
@@ -86,7 +87,6 @@ const App = () => {
     if (mediaType === 'image' && imageRef.current) {
       const processImage = async () => {
         const detectedGroups = await getGroups(imageRef.current!);
-        const imageTimestamp = 1;
         
         setMediaFrame(imageRef.current);
         addExtractedFrameAsPng(await imageToBlobAsync(imageRef.current!, 'image/png') as Blob, imageTimestamp);
@@ -191,7 +191,7 @@ const App = () => {
               (async () => {
                 addAnnotatedImageAsPng(
                   await canvasToBlob(canvas, 'image/png') as Blob,
-                  mediaType === 'image' ? 1 : videoTimestamp // 画像だったら `1` で固定
+                  mediaType === 'image' ? imageTimestamp : videoTimestamp
                 );
               })();
             }}
