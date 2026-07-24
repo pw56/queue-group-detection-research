@@ -6,7 +6,10 @@ interface ZipFileItem {
   name: string;
   data: Uint8Array;
 }
+
 const fileQueue: ZipFileItem[] = [];
+let hasChanged: boolean = false;
+let previousZipBlob: Blob | null = null;
 
 /**
  * ZIPアーカイブにファイルを追加する関数
@@ -15,6 +18,7 @@ const fileQueue: ZipFileItem[] = [];
  */
 export function addFileToZip(name: string, data: Uint8Array): void {
   fileQueue.push({ name, data });
+  hasChanged = true;
 }
 
 /**
@@ -22,6 +26,10 @@ export function addFileToZip(name: string, data: Uint8Array): void {
  * @param zipFileName 出力するZIPファイル名 (デフォルト: "archive.zip")
  */
 export async function downloadZip(zipFileName: string = 'archive.zip'): Promise<void> {
+  // 前回から変更がなく、前回の処理結果があれば、前回の成果物を即返す
+  if (!hasChanged && previousZipBlob)
+    saveAs(previousZipBlob!, zipFileName);
+
   if (fileQueue.length === 0) {
     throw new Error('No files found');
   }
@@ -41,10 +49,11 @@ export async function downloadZip(zipFileName: string = 'archive.zip'): Promise<
       // すべての書き込みが完了したらBlob化してダウンロード
       if (final) {
         const blob = new Blob(chunks, { type: 'application/zip' });
+        previousZipBlob = blob; // 使い回し用
+        hasChanged = false;
+        
         saveAs(blob, zipFileName);
         
-        // 次回実行のためにキューをクリア
-        fileQueue.length = 0;
         resolve();
       }
     }
