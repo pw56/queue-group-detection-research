@@ -199,6 +199,10 @@ const App = () => {
             
             {/* グループ数表示 */}
             <span>検出されたグループ数: {groups.length}</span>
+
+            {/* 実験結果のダウンロード */}
+            <button onClick={() => downloadZip('experimental_results.zip')}>実験結果をダウンロード</button>
+
           </nav>
 
         </>
