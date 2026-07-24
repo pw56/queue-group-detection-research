@@ -8,7 +8,8 @@ export async function getGroups(imageSource: GroupDetectionImageSource): Promise
   if (!imageSource) throw new Error("No input data exists");
 
   try {
-    const people = await detectPeople(imageSource);
+    const detections = await detectPeople(imageSource);
+    const people = detections.map(detection => detection.boundingBox);
     const groups = convertToGroups(people);
     return groups;
   } catch (error) {
