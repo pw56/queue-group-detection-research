@@ -25,6 +25,9 @@ const App = () => {
   const imageRef = useRef<HTMLImageElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   
+  // Canvas生成完了を通知するコールバック
+  const resolveCanvasRef = useRef<(() => void) | null>(null);
+  
   // 合成結果表示用
   const [mediaFrame, setMediaFrame] = useState<CanvasImageSource | null>(null);
   const [groups, setGroups] = useState<Groups>([]);
@@ -189,10 +192,15 @@ const App = () => {
             groups={groups}
             onCanvasGenerated={(canvas) => {
               (async () => {
-                addAnnotatedImageAsPng(
+                await addAnnotatedImageAsPng(
                   await canvasToBlob(canvas, 'image/png') as Blob,
                   mediaType === 'image' ? imageTimestamp : videoTimestamp
                 );
+                // 画像のプッシュ完了をダウンロード処理に通知
+                if (resolveCanvasRef.current) {
+                  resolveCanvasRef.current();
+                  resolveCanvasRef.current = null;
+                }
               })();
             }}
             className="w-2/3 h-full object-contain"
@@ -207,7 +215,15 @@ const App = () => {
 
             {/* 実験結果のダウンロード */}
             <button
-              onClick={() => downloadZip('experimental_results.zip')}
+              onClick={async () => {
+                // 最新フレームの描画完了（非同期）を待機するPromiseを作成
+                await new Promise<void>((resolve) => {
+                  resolveCanvasRef.current = resolve;
+                  // 万が一Canvasが再描画されない場合の安全対策（1秒でタイムアウトしてDLを実行）
+                  setTimeout(resolve, 1000);
+                });
+                downloadZip('experimental_results.zip');
+              }}
               className="bg-blue-500 hover:bg-blue-700 active:bg-blue-700 text-white font-bold py-2 px-4 rounded"
             >実験結果をダウンロード</button>
 
