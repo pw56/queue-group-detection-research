@@ -11,8 +11,9 @@ import {
   downloadZip
 } from './exportExperimentData';
 
-// 仮のタイムスタンプ、あとで直す
-const timestamp = 1;
+// 動画用のグローバルなタイムスタンプ
+// 動画のEffect内の変数だとバウンディングボックスの方で使えないのでグローバル
+let videoTimestamp: number = -1;
 
 const App = () => {
   // アップロードされたメディアの管理用
@@ -85,10 +86,12 @@ const App = () => {
     if (mediaType === 'image' && imageRef.current) {
       const processImage = async () => {
         const detectedGroups = await getGroups(imageRef.current!);
+        const imageTimestamp = 1;
+        
         setMediaFrame(imageRef.current);
-        addExtractedFrameAsPng(await imageToBlobAsync(imageRef.current!, 'image/png') as Blob, timestamp);
+        addExtractedFrameAsPng(await imageToBlobAsync(imageRef.current!, 'image/png') as Blob, imageTimestamp);
         setGroups(detectedGroups);
-        addObjectAsJson(detectedGroups, timestamp);
+        addObjectAsJson(detectedGroups, imageTimestamp);
       };
       
       // 画像の読み込み完了を待って処理、または既に読み込み済みの場合は即時実行
@@ -105,24 +108,23 @@ const App = () => {
     if (mediaType !== 'video' || !videoRef.current) return;
 
     const video = videoRef.current;
-    let lastProcessedTime = -1;
 
     const handleTimeUpdate = async () => {
       // 動画の現在の再生時間を秒単位（整数）で取得
       const currentTimeFloor = Math.floor(video.currentTime);
 
       // 前回の処理から動画の尺が1秒進んだか判定
-      if (currentTimeFloor > lastProcessedTime) {
-        lastProcessedTime = currentTimeFloor;
+      if (currentTimeFloor > videoTimestamp) {
+        videoTimestamp = currentTimeFloor;
 
         // 動画が読み込まれている場合
         if (video.readyState >= 2) { // HAVE_CURRENT_DATA 以上
           const img = await videoToImageAsync(video); // 実験結果出力に含める
           const detectedGroups = await getGroups(img!);
           setMediaFrame(img);
-          addExtractedFrameAsPng(await imageToBlobAsync(img!, 'image/png') as Blob, timestamp);
+          addExtractedFrameAsPng(await imageToBlobAsync(img!, 'image/png') as Blob, videoTimestamp);
           setGroups(detectedGroups);
-          addObjectAsJson(detectedGroups, timestamp);
+          addObjectAsJson(detectedGroups, videoTimestamp);
         }
       }
     };
@@ -187,7 +189,7 @@ const App = () => {
             groups={groups}
             onCanvasGenerated={(canvas) => {
               (async () => {
-                addAnnotatedImageAsPng(await canvasToBlob(canvas, 'image/png') as Blob, timestamp);
+                addAnnotatedImageAsPng(await canvasToBlob(canvas, 'image/png') as Blob, videoTimestamp);
               })();
             }}
             className="w-2/3 h-full object-contain"
