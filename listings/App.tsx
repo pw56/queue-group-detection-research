@@ -31,6 +31,9 @@ const App = () => {
   // 合成結果表示用
   const [mediaFrame, setMediaFrame] = useState<CanvasImageSource | null>(null);
   const [groups, setGroups] = useState<Groups>([]);
+
+  // ダウンロードボタン制御用
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
   
   // ファイル選択時のハンドラ
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -215,17 +218,25 @@ const App = () => {
 
             {/* 実験結果のダウンロード */}
             <button
+              disabled={isDownloading}
               onClick={async () => {
-                // 最新フレームの描画完了（非同期）を待機するPromiseを作成
-                await new Promise<void>((resolve) => {
-                  resolveCanvasRef.current = resolve;
-                  // 万が一Canvasが再描画されない場合の安全対策（1秒でタイムアウトしてDLを実行）
-                  setTimeout(resolve, 1000);
-                });
-                downloadZip('experimental_results.zip');
+                setIsDownloading(true);
+                try {
+                  // 最新フレームの描画完了（非同期）を待機するPromiseを作成
+                  await new Promise<void>((resolve) => {
+                    resolveCanvasRef.current = resolve;
+                    // 万が一Canvasが再描画されない場合の安全対策（1秒でタイムアウトしてDLを実行）
+                    setTimeout(resolve, 1000);
+                  });
+                  await downloadZip('experimental_results.zip');
+                } finally {
+                  setIsDownloading(false);
+                }
               }}
               className="bg-blue-500 hover:bg-blue-700 active:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-            >実験結果をダウンロード</button>
+            >
+              {isDownloading ? 'ダウンロード中...' : '実験結果をダウンロード'}
+            </button>
 
           </nav>
 
