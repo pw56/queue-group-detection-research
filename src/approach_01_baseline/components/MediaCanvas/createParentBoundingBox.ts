@@ -1,4 +1,4 @@
-import { Group, BoundingBox } from '../getGroups';
+import { Group, BoundingBox } from '../../getGroups';
 
 /**
  * 複数のDetectionから、それらをすべて内包する親BoundingBoxを生成する関数
