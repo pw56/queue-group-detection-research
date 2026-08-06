@@ -1,9 +1,7 @@
-name: Build approach_02_roi
+name: Build All
 
 on:
-  push:
-    paths:
-      - 'src/approach_02_roi/**'
+  workflow_dispatch:
 
 # GitHub Pages へのデプロイに必要な権限を設定
 permissions:
@@ -14,4 +12,4 @@ jobs:
   build-and-deploy:
     uses: ./.github/workflows/build-and-deploy.yml
     with:
-      directory: ./src/approach_02_roi
+      directory: ./src
