@@ -94,13 +94,19 @@ const App = () => {
   useEffect(() => {
     if (mediaType === 'image' && imageRef.current) {
       const processImage = async () => {
-        let inputElement: HTMLImageElement = imageRef.current!;
+        const rawElement = imageRef.current!;
+
+        // 1. まず元画像を mediaFrame に渡して ImageCropper をレンダリングさせる
+        setMediaFrame(rawElement);
+
+        // 2. レンダリング後に cropperRef が利用可能になるため、クロップ画像を取得（取得できなければ元画像）
+        let inputElement: HTMLImageElement = rawElement;
         if (cropperRef.current) {
           inputElement = await cropperRef.current.getClippedImage();
         }
+
         const detectedGroups = await getGroups(inputElement);
         
-        setMediaFrame(inputElement);
         addExtractedFrameAsPng(await imageToBlobAsync(inputElement, 'image/png') as Blob, imageTimestamp);
         setGroups(detectedGroups);
         addObjectAsJson(detectedGroups, imageTimestamp);
@@ -131,13 +137,20 @@ const App = () => {
 
         // 動画が読み込まれている場合
         if (video.readyState >= 2) { // HAVE_CURRENT_DATA 以上
-          let img: HTMLImageElement | null = await videoToImageAsync(video); // 実験結果出力に含める
-          if (cropperRef.current && img) {
-            img = await cropperRef.current.getClippedImage();
+          const rawImg = await videoToImageAsync(video); // 実験結果出力に含める
+          if (!rawImg) return;
+
+          // 1. まず元フレームを mediaFrame にセットして ImageCropper を確実にレンダリングさせる
+          setMediaFrame(rawImg);
+
+          // 2. cropperRef がある場合は切り抜き画像を、なければ元のフレーム画像を使用
+          let processedImg: HTMLImageElement = rawImg;
+          if (cropperRef.current) {
+            processedImg = await cropperRef.current.getClippedImage();
           }
-          const detectedGroups = await getGroups(img!);
-          setMediaFrame(img);
-          addExtractedFrameAsPng(await imageToBlobAsync(img!, 'image/png') as Blob, videoTimestamp);
+
+          const detectedGroups = await getGroups(processedImg);
+          addExtractedFrameAsPng(await imageToBlobAsync(processedImg, 'image/png') as Blob, videoTimestamp);
           setGroups(detectedGroups);
           addObjectAsJson(detectedGroups, videoTimestamp);
         }
