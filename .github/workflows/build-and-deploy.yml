@@ -91,9 +91,7 @@ jobs:
         run: |
           TARGET_DIR="${{ github.event.inputs.directory || inputs.directory }}"
           
-          # TARGET_DIR から "src" や "src/" を削除（先頭や末尾、単体の場合に対応）
-          CLEAN_DIR=$(echo "$TARGET_DIR" | sed -E 's|^src/?||; s|/src/?|/|g; s|/$||')
-          TARGET_PATH="./deploy_workspace/$CLEAN_DIR"
+          TARGET_PATH="./deploy_workspace/$TARGET_DIR"
           
           mkdir -p "$TARGET_PATH"
           
