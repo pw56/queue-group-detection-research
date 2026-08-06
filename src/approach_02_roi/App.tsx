@@ -10,6 +10,7 @@ import {
   addObjectAsJson,
   downloadZip
 } from './utils/exportExperimentData';
+import { ImageCropper, ImageCropperRef } from './ImageCropper';
 
 // 動画用のグローバルなタイムスタンプ
 // 動画のEffect内の変数だとバウンディングボックスの方で使えないのでグローバル
@@ -24,6 +25,7 @@ const App = () => {
   // ループ処理で参照するためのRef
   const imageRef = useRef<HTMLImageElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const cropperRef = useRef<ImageCropperRef | null>(null);
   
   // Canvas生成完了を通知するコールバック
   const resolveCanvasRef = useRef<(() => void) | null>(null);
@@ -92,10 +94,14 @@ const App = () => {
   useEffect(() => {
     if (mediaType === 'image' && imageRef.current) {
       const processImage = async () => {
-        const detectedGroups = await getGroups(imageRef.current!);
+        let inputElement: HTMLImageElement = imageRef.current!;
+        if (cropperRef.current) {
+          inputElement = await cropperRef.current.getClippedImage();
+        }
+        const detectedGroups = await getGroups(inputElement);
         
-        setMediaFrame(imageRef.current);
-        addExtractedFrameAsPng(await imageToBlobAsync(imageRef.current!, 'image/png') as Blob, imageTimestamp);
+        setMediaFrame(inputElement);
+        addExtractedFrameAsPng(await imageToBlobAsync(inputElement, 'image/png') as Blob, imageTimestamp);
         setGroups(detectedGroups);
         addObjectAsJson(detectedGroups, imageTimestamp);
       };
@@ -125,7 +131,10 @@ const App = () => {
 
         // 動画が読み込まれている場合
         if (video.readyState >= 2) { // HAVE_CURRENT_DATA 以上
-          const img = await videoToImageAsync(video); // 実験結果出力に含める
+          let img: HTMLImageElement | null = await videoToImageAsync(video); // 実験結果出力に含める
+          if (cropperRef.current && img) {
+            img = await cropperRef.current.getClippedImage();
+          }
           const detectedGroups = await getGroups(img!);
           setMediaFrame(img);
           addExtractedFrameAsPng(await imageToBlobAsync(img!, 'image/png') as Blob, videoTimestamp);
@@ -189,25 +198,34 @@ const App = () => {
             />
           )}
 
-          {/* 合成表示用のCanvasコンポーネント（DRY原則に基づき共通化） */}
-          <ResultView 
-            mediaSource={mediaFrame} 
-            groups={groups}
-            onCanvasGenerated={(canvas) => {
-              (async () => {
-                await addAnnotatedImageAsPng(
-                  await canvasToBlob(canvas, 'image/png') as Blob,
-                  mediaType === 'image' ? imageTimestamp : videoTimestamp
-                );
-                // 画像のプッシュ完了をダウンロード処理に通知
-                if (resolveCanvasRef.current) {
-                  resolveCanvasRef.current();
-                  resolveCanvasRef.current = null;
-                }
-              })();
-            }}
-            className="w-2/3 h-full object-contain"
-          />
+          <div className="flex flex-col w-2/3 h-full">
+            {mediaFrame && (
+              <ImageCropper
+                ref={cropperRef}
+                imageElement={mediaFrame}
+                className="w-full h-1/2"
+              />
+            )}
+            {/* 合成表示用のCanvasコンポーネント（DRY原則に基づき共通化） */}
+            <ResultView 
+              mediaSource={mediaFrame} 
+              groups={groups}
+              onCanvasGenerated={(canvas) => {
+                (async () => {
+                  await addAnnotatedImageAsPng(
+                    await canvasToBlob(canvas, 'image/png') as Blob,
+                    mediaType === 'image' ? imageTimestamp : videoTimestamp
+                  );
+                  // 画像のプッシュ完了をダウンロード処理に通知
+                  if (resolveCanvasRef.current) {
+                    resolveCanvasRef.current();
+                    resolveCanvasRef.current = null;
+                  }
+                })();
+              }}
+              className="w-full h-1/2 object-contain"
+            />
+          </div>
           
           {/* flex-col を追加して中の要素を強制的に改行 */}
           {/* navの横幅を画面の半分にし、境界が中央にくるように調整 */}
