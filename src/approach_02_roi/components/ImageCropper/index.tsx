@@ -1,23 +1,9 @@
 import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { Stage, Layer, Image as KonvaImage, Line } from 'react-konva';
 import Konva from 'konva';
+import { ImageCropperProps, ImageCropperRef, ImageLayout } from './types';
 
-export interface ImageCropperProps {
-  imageElement: HTMLImageElement; 
-  className?: string;             
-}
-
-export interface ImageCropperRef {
-  getClippedImage: () => Promise<HTMLImageElement>;
-}
-
-// アスペクト比を維持した画像のレイアウト情報を保持する型定義
-interface ImageLayout {
-  width: number;
-  height: number;
-  x: number;
-  y: number;
-}
+export { ImageCropperProps, ImageCropperRef } from './types';
 
 export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
   ({ imageElement, className }, ref) => {
