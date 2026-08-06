@@ -60,11 +60,31 @@ jobs:
           echo "HOSTED_URL=https://${{ github.repository_owner }}.github.io/$REPO_NAME" >> $GITHUB_ENV
 
       # 2. 現在ホストされているファイルをwgetでフォルダごと取得（既存ファイルの維持用）
-      - name: Fetch current hosted assets
+      - name: Mirror specific subdirectories from GitHub Pages
         run: |
-          mkdir -p ./deploy_workspace
-          # --mirror: 再帰取得, -p: ページに必要な全ファイル, -nH: ホスト名フォルダを作らない, -P: 保存先
-          wget --mirror -p -K -nH --no-check-certificate -P ./deploy_workspace ${{ env.HOSTED_URL }} || true
+          # 1. src直下のディレクトリ名を取得してループ処理
+          # (例: src/assets/, src/v1/ があれば、「assets」「v1」が抽出される)
+          for dir_path in src/*/; do
+            
+            # ディレクトリが存在しない（src/ が空など）場合のガード
+            [ -e "$dir_path" ] || continue
+            
+            # パスから末尾のスラッシュを除去し、フォルダ名だけを切り出す
+            DIR_NAME=$(basename "$dir_path")
+            
+            echo "Processing directory: $DIR_NAME"
+            
+            # 2. 動的にURLを組み立てて、各ディレクトリごとに wget --mirror を実行
+            # 各ディレクトリの中身（配下の全ファイル）を丸ごと引っこ抜く
+            wget --mirror \
+                -p \
+                -K \
+                -nH \
+                --no-check-certificate \
+                -P ./deploy_workspace \
+                "${{ env.HOSTED_URL }}/${DIR_NAME}/" || true
+                
+          done
 
       # 3. ビルドジョブから成果物（全階層の dist が入った状態）をダウンロード
       - name: Download Build Artifact
