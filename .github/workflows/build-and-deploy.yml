@@ -70,7 +70,7 @@ jobs:
             echo "--------------------------------------------------"
             echo "Target Directory: $parent_dir"
             
-            # 【新規追加】1. dist 以外のファイル・フォルダを削除
+            # 1. dist 以外のファイル・フォルダを削除
             echo "Cleaning up non-dist items in $parent_dir..."
             find "$parent_dir" -mindepth 1 -maxdepth 1 ! -name "dist" -exec rm -rf {} \;
             
