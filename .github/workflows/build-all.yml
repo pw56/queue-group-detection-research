@@ -1,0 +1,15 @@
+name: Build All
+
+on:
+  workflow_dispatch:
+
+# GitHub Pages へのデプロイに必要な権限を設定
+permissions:
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    uses: ./.github/workflows/build-and-deploy.yml
+    with:
+      directory: ./src

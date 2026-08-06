@@ -34,9 +34,28 @@ jobs:
       # 1. 指定されたルートディレクトリでビルド（サブディレクトリのdistも自動生成される）
       - name: Install dependencies and Build
         run: |
-          cd ${{ github.event.inputs.directory || inputs.directory }}
-          npm ci
-          npm run build
+          REQ_DIR="${{ github.event.inputs.directory || inputs.directory }}"
+          if [ "$REQ_DIR" = "./src" ] || [ "$REQ_DIR" = "src" ]; then
+            echo "Directory is src. Building all subdirectories in parallel..."
+            cd "$REQ_DIR"
+            # package.json が存在する全サブフォルダをバックグラウンド並列実行
+            for dir in */ ; do
+              if [ -f "${dir}package.json" ]; then
+                (
+                  echo "Starting build in: $dir"
+                  cd "$dir"
+                  npm ci
+                  npm run build
+                  echo "Finished build in: $dir"
+                ) &
+              fi
+            done
+            wait
+          else
+            cd "$REQ_DIR"
+            npm ci
+            npm run build
+          fi
 
       # 2. 生成されたすべての dist を含む、ルートディレクトリ全体を一時保存
       - name: Upload temporary build artifact
