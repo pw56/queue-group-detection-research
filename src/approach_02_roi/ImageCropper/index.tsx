@@ -4,7 +4,7 @@ import Konva from 'konva';
 import { ImageCropperProps, ImageCropperRef, ImageLayout } from './types';
 import { cropImage } from './cropUtils';
 
-export { ImageCropperProps, ImageCropperRef } from './types';
+export type { ImageCropperProps, ImageCropperRef } from './types';
 
 export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
   ({ imageElement, className }, ref) => {
