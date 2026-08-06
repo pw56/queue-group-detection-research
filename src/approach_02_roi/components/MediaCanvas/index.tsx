@@ -8,7 +8,7 @@ export const MediaCanvas = ({
   onCanvasGenerated,
   className
 }: {
-  mediaSource: CanvasImageSource | null;
+  mediaSource: HTMLImageElement | null;
   groups: Groups;
   onCanvasGenerated?: (canvas: HTMLCanvasElement) => void;
   className?: string;
@@ -23,8 +23,8 @@ export const MediaCanvas = ({
 
     // 1. メディアの実際のサイズを取得してCanvasをリサイズ
     // (Image, Video, Canvas それぞれの幅・高さのプロパティに対応)
-    const width = (mediaSource as HTMLVideoElement).videoWidth || (mediaSource as HTMLImageElement).naturalWidth || (mediaSource as HTMLCanvasElement).width || 0;
-    const height = (mediaSource as HTMLVideoElement).videoHeight || (mediaSource as HTMLImageElement).naturalHeight || (mediaSource as HTMLCanvasElement).height || 0;
+    const width = mediaSource.naturalWidth || 0;
+    const height = mediaSource.naturalHeight || 0;
 
     if (width === 0 || height === 0) return;
 

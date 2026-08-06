@@ -29,7 +29,7 @@ const App = () => {
   const resolveCanvasRef = useRef<(() => void) | null>(null);
   
   // 合成結果表示用
-  const [mediaFrame, setMediaFrame] = useState<CanvasImageSource | null>(null);
+  const [mediaFrame, setMediaFrame] = useState<HTMLImageElement | null>(null);
   const [groups, setGroups] = useState<Groups>([]);
 
   // ダウンロードボタン制御用

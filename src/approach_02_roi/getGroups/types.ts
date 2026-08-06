@@ -4,12 +4,7 @@ import { Detection } from '@mediapipe/tasks-vision';
 type Group = Omit<Detection['boundingBox'], 'angle'>[];
 type Groups = Group[];
 
-type GroupDetectionImageSource =
-  HTMLImageElement  |
-  HTMLVideoElement  |
-  HTMLCanvasElement |
-  OffscreenCanvas   |
-  VideoFrame;
+type GroupDetectionImageSource = HTMLImageElement;
 
 export type { Group, Groups, GroupDetectionImageSource };
 export { type Detection, type BoundingBox } from '@mediapipe/tasks-vision';
