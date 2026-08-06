@@ -1,6 +1,7 @@
 export interface ImageCropperProps {
   imageElement: HTMLImageElement; 
   className?: string;             
+  onCropChange?: (croppedImage: HTMLImageElement) => void;
 }
 
 export interface ImageCropperRef {

@@ -7,7 +7,7 @@ import { cropImage } from './cropUtils';
 export type { ImageCropperProps, ImageCropperRef } from './types';
 
 export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
-  ({ imageElement, className }, ref) => {
+  ({ imageElement, className, onCropChange }, ref) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const lineRef = useRef<Konva.Line>(null); // パフォーマンス対策：Lineノードを直接参照
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -109,7 +109,7 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
     };
 
     // 描き終わり
-    const handleEnd = () => {
+    const handleEnd = async () => {
       if (!isDrawing.current) return;
       isDrawing.current = false;
       
@@ -122,6 +122,15 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
       if (lineRef.current) {
         lineRef.current.points(currentPoints);
         lineRef.current.getLayer()?.batchDraw();
+      }
+
+      if (onCropChange) {
+        try {
+          const croppedImage = await cropImage(imageElement, currentPoints, imageLayout);
+          onCropChange(croppedImage);
+        } catch (error) {
+          console.error(error);
+        }
       }
     };
 

@@ -83,6 +83,16 @@ const App = () => {
     }
   };
 
+  // 切り取り範囲が更新・決定された時のハンドラ
+  const handleCropChange = async (croppedImg: HTMLImageElement) => {
+    const timestamp = mediaType === 'image' ? imageTimestamp : videoTimestamp;
+    const detectedGroups = await getGroups(croppedImg);
+    
+    addExtractedFrameAsPng(await imageToBlobAsync(croppedImg, 'image/png') as Blob, timestamp);
+    setGroups(detectedGroups);
+    addObjectAsJson(detectedGroups, timestamp);
+  };
+
   // メモリリーク対策：アンマウント時にオブジェクトURLを解放
   useEffect(() => {
     return () => {
@@ -216,6 +226,7 @@ const App = () => {
               <ImageCropper
                 ref={cropperRef}
                 imageElement={mediaFrame}
+                onCropChange={handleCropChange}
                 className="w-full h-1/2"
               />
             )}
