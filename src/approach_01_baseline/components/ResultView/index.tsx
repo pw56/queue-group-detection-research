@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Groups } from '../../getGroups';
 import { createParentBoundingBox } from './createParentBoundingBox';
 
-export const MediaCanvas = ({
+export const ResultView = ({
   mediaSource,
   groups,
   onCanvasGenerated,

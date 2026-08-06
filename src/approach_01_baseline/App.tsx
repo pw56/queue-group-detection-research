@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './global.css';
 import { getGroups, Groups } from './getGroups';
-import { MediaCanvas } from './components/MediaCanvas';
+import { ResultView } from './components/ResultView';
 import { imageToBlobAsync, videoToImageAsync, canvasToBlob } from './utils/toImage';
 import {
   addInputMediaFile,
@@ -190,7 +190,7 @@ const App = () => {
           )}
 
           {/* 合成表示用のCanvasコンポーネント（DRY原則に基づき共通化） */}
-          <MediaCanvas 
+          <ResultView 
             mediaSource={mediaFrame} 
             groups={groups}
             onCanvasGenerated={(canvas) => {
