@@ -38,7 +38,7 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
     const people = result.detections.filter((detection: Detection) => {
       return detection.categories.some((category: Category) => {
         // 信頼度（スコア）で人物のみに絞り込む
-        return category.score >= 0.5;
+        return category.score >= 0.1;
       });
     });
 
