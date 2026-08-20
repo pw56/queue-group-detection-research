@@ -96,23 +96,37 @@ jobs:
           mkdir -p "$TARGET_PATH"
           
           # 一時ワークスペース内の「すべての階層の dist フォルダ」を探して処理
-          find ./temp_workspace -type d -name "dist" | while read -r dist_dir; do
+          # Find dist directories but skip anything under node_modules
+          find ./temp_workspace -path "*/node_modules/*" -prune -o -type d -name "dist" -print | while read -r dist_dir; do
             parent_dir=$(dirname "$dist_dir")
             echo "--------------------------------------------------"
             echo "Target Directory: $parent_dir"
-            
-            # 1. dist 以外のファイル・フォルダを削除
-            echo "Cleaning up non-dist items in $parent_dir..."
-            find "$parent_dir" -mindepth 1 -maxdepth 1 ! -name "dist" -exec rm -rf {} \;
-            
-            # 2. distの中身（隠しファイル含む全ファイル）を親ディレクトリへ移動
-            echo "Flattening: Moving contents of $dist_dir to $parent_dir"
-            if [ "$(ls -A "$dist_dir")" ]; then
-              (shopt -s dotglob; mv "$dist_dir"/* "$parent_dir/")
+
+            # Skip if parent does not exist (might have been removed by earlier iteration)
+            if [ ! -d "$parent_dir" ]; then
+              echo "Skipping missing parent dir: $parent_dir"
+              continue
             fi
-            
-            # 3. 空になった dist ディレクトリを削除
-            rmdir "$dist_dir"
+
+            # Safety: avoid operating on top-level temp_workspace itself
+            if [ "$parent_dir" = "./temp_workspace" ]; then
+              echo "Skipping top-level temp_workspace"
+              continue
+            fi
+
+            # 1. Remove non-dist items in parent (but preserve node_modules and package files)
+            echo "Cleaning up non-dist items in $parent_dir..."
+            find "$parent_dir" -mindepth 1 -maxdepth 1 ! -name "dist" ! -path "*/node_modules" -exec rm -rf {} \;
+
+            # 2. Move dist contents into the parent directory (use rsync to handle dotfiles safely)
+            echo "Flattening: Moving contents of $dist_dir to $parent_dir"
+            if [ -d "$dist_dir" ] && [ "$(ls -A "$dist_dir")" ]; then
+              rsync -a --remove-source-files "$dist_dir"/ "$parent_dir"/
+              # try to remove the now-empty dist directory (ignore failures)
+              rmdir "$dist_dir" 2>/dev/null || true
+            else
+              echo "No files to move from $dist_dir"
+            fi
           done
           
           # 最後に、クリーンかつ展開された状態のファイルをデプロイ用ワークスペースにコピー（上書き合成）

@@ -10,6 +10,7 @@ import {
   addObjectAsJson,
   downloadZip
 } from './utils/exportExperimentData';
+import { ImageCropper, ImageCropperRef, CropResult, CroppedBoundingBox } from './ImageCropper';
 
 // 動画用のグローバルなタイムスタンプ
 // 動画のEffect内の変数だとバウンディングボックスの方で使えないのでグローバル
@@ -24,6 +25,7 @@ const App = () => {
   // ループ処理で参照するためのRef
   const imageRef = useRef<HTMLImageElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const cropperRef = useRef<ImageCropperRef | null>(null);
   
   // Canvas生成完了を通知するコールバック
   const resolveCanvasRef = useRef<(() => void) | null>(null);
@@ -31,6 +33,7 @@ const App = () => {
   // 合成結果表示用
   const [mediaFrame, setMediaFrame] = useState<HTMLImageElement | null>(null);
   const [groups, setGroups] = useState<Groups>([]);
+  const [croppedBoundingBox, setCroppedBoundingBox] = useState<CroppedBoundingBox | undefined>(undefined);
 
   // ダウンロードボタン制御用
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
@@ -81,6 +84,28 @@ const App = () => {
     }
   };
 
+  // 切り取り範囲が更新・決定された時のハンドラ
+  const handleCropChange = async (cropResult: CropResult) => {
+    if (mediaType === 'image') {
+      if (imageRef.current) {
+        const rawImg = new Image();
+        rawImg.src = imageRef.current.src;
+        await rawImg.decode().catch(() => {});
+        setMediaFrame(rawImg);
+      }
+
+      // 切り取り後のバウンディングボックスを State にセット
+      setCroppedBoundingBox(cropResult.boundingBox);
+
+      const timestamp = imageTimestamp;
+      const detectedGroups = await getGroups(cropResult.croppedImage);
+      
+      addExtractedFrameAsPng(await imageToBlobAsync(cropResult.croppedImage, 'image/png') as Blob, timestamp);
+      setGroups(detectedGroups);
+      addObjectAsJson(detectedGroups, timestamp);
+    }
+  };
+
   // メモリリーク対策：アンマウント時にオブジェクトURLを解放
   useEffect(() => {
     return () => {
@@ -92,10 +117,25 @@ const App = () => {
   useEffect(() => {
     if (mediaType === 'image' && imageRef.current) {
       const processImage = async () => {
-        const detectedGroups = await getGroups(imageRef.current!);
+        const rawElement = imageRef.current!;
+
+        // 1. まず元画像を mediaFrame に渡して ImageCropper をレンダリングさせる
+        const rawImg = new Image();
+        rawImg.src = rawElement.src;
+        await rawImg.decode().catch(() => {});
+        setMediaFrame(rawImg);
+
+        // 2. レンダリング後に cropperRef が利用可能になるため、クロップ画像を取得（取得できなければ元画像）
+        let inputElement: HTMLImageElement = rawElement;
+        if (cropperRef.current) {
+          const result = await cropperRef.current.getClippedImage();
+          inputElement = result.croppedImage;
+          setCroppedBoundingBox(result.boundingBox);
+        }
+
+        const detectedGroups = await getGroups(inputElement);
         
-        setMediaFrame(imageRef.current);
-        addExtractedFrameAsPng(await imageToBlobAsync(imageRef.current!, 'image/png') as Blob, imageTimestamp);
+        addExtractedFrameAsPng(await imageToBlobAsync(inputElement, 'image/png') as Blob, imageTimestamp);
         setGroups(detectedGroups);
         addObjectAsJson(detectedGroups, imageTimestamp);
       };
@@ -125,10 +165,22 @@ const App = () => {
 
         // 動画が読み込まれている場合
         if (video.readyState >= 2) { // HAVE_CURRENT_DATA 以上
-          const img = await videoToImageAsync(video); // 実験結果出力に含める
-          const detectedGroups = await getGroups(img!);
-          setMediaFrame(img);
-          addExtractedFrameAsPng(await imageToBlobAsync(img!, 'image/png') as Blob, videoTimestamp);
+          const rawImg = await videoToImageAsync(video); // 実験結果出力に含める
+          if (!rawImg) return;
+
+          // 1. まず元フレームを mediaFrame にセットして ImageCropper を確実にレンダリングさせる
+          setMediaFrame(rawImg);
+
+          // 2. cropperRef がある場合は切り抜き画像を、なければ元のフレーム画像を使用
+          let processedImg: HTMLImageElement = rawImg;
+          if (cropperRef.current) {
+            const result = await cropperRef.current.getClippedImage();
+            processedImg = result.croppedImage;
+            setCroppedBoundingBox(result.boundingBox);
+          }
+
+          const detectedGroups = await getGroups(processedImg);
+          addExtractedFrameAsPng(await imageToBlobAsync(processedImg, 'image/png') as Blob, videoTimestamp);
           setGroups(detectedGroups);
           addObjectAsJson(detectedGroups, videoTimestamp);
         }
@@ -189,25 +241,36 @@ const App = () => {
             />
           )}
 
-          {/* 合成表示用のCanvasコンポーネント（DRY原則に基づき共通化） */}
-          <ResultView 
-            mediaSource={mediaFrame} 
-            groups={groups}
-            onCanvasGenerated={(canvas) => {
-              (async () => {
-                await addAnnotatedImageAsPng(
-                  await canvasToBlob(canvas, 'image/png') as Blob,
-                  mediaType === 'image' ? imageTimestamp : videoTimestamp
-                );
-                // 画像のプッシュ完了をダウンロード処理に通知
-                if (resolveCanvasRef.current) {
-                  resolveCanvasRef.current();
-                  resolveCanvasRef.current = null;
-                }
-              })();
-            }}
-            className="w-2/3 h-full object-contain"
-          />
+          <div className="flex flex-col w-2/3 h-full">
+            {mediaFrame && (
+              <ImageCropper
+                ref={cropperRef}
+                imageElement={mediaFrame}
+                onCropChange={handleCropChange}
+                className="w-full h-1/2"
+              />
+            )}
+            {/* 合成表示用のCanvasコンポーネント（DRY原則に基づき共通化） */}
+            <ResultView 
+              mediaSource={mediaFrame} 
+              groups={groups}
+              croppedBoundingBox={croppedBoundingBox}
+              onCanvasGenerated={(canvas) => {
+                (async () => {
+                  await addAnnotatedImageAsPng(
+                    await canvasToBlob(canvas, 'image/png') as Blob,
+                    mediaType === 'image' ? imageTimestamp : videoTimestamp
+                  );
+                  // 画像のプッシュ完了をダウンロード処理に通知
+                  if (resolveCanvasRef.current) {
+                    resolveCanvasRef.current();
+                    resolveCanvasRef.current = null;
+                  }
+                })();
+              }}
+              className="w-full h-1/2 object-contain"
+            />
+          </div>
           
           {/* flex-col を追加して中の要素を強制的に改行 */}
           {/* navの横幅を画面の半分にし、境界が中央にくるように調整 */}

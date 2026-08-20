@@ -17,6 +17,14 @@ let previousZipBlob: Blob | null = null;
  * @param data ファイルのデータ (Uint8Array)
  */
 export function addFileToZip(name: string, data: Uint8Array): void {
+  // 同じファイル名が既に存在するか確認
+  const existingIndex = fileQueue.findIndex(item => item.name === name);
+
+  if (existingIndex !== -1) {
+    // 存在する場合は古い方を削除して新しいデータを追加（上書き）
+    fileQueue.splice(existingIndex, 1);
+  }
+
   fileQueue.push({ name, data });
   hasChanged = true;
 }
