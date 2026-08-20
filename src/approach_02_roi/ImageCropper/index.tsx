@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { Stage, Layer, Image as KonvaImage, Line } from 'react-konva';
 import Konva from 'konva';
-import { ImageCropperProps, ImageCropperRef, ImageLayout } from './types';
+import { ImageCropperProps, ImageCropperRef, ImageLayout, CropResult } from './types';
 import { cropImage } from './cropUtils';
 
-export type { ImageCropperProps, ImageCropperRef } from './types';
+export type { ImageCropperProps, ImageCropperRef, CropResult, CroppedBoundingBox } from './types';
 
 export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
   ({ imageElement, className, onCropChange }, ref) => {
@@ -126,8 +126,9 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
 
       if (onCropChange) {
         try {
-          const croppedImage = await cropImage(imageElement, currentPoints, imageLayout);
-          onCropChange(croppedImage);
+          // cropImage から返される CropResult をそのまま渡す
+          const cropResult = await cropImage(imageElement, currentPoints, imageLayout);
+          onCropChange(cropResult);
         } catch (error) {
           console.error(error);
         }
@@ -136,7 +137,8 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
 
     // 親コンポーネントへ公開するメソッド（ロジックはピュアCanvasで高速処理）
     useImperativeHandle(ref, () => ({
-      getClippedImage: (): Promise<HTMLImageElement> => {
+      // 戻り値の型が CropResult に更新された cropImage を呼ぶ
+      getClippedImage: (): Promise<CropResult> => {
         return cropImage(imageElement, pointsRef.current, imageLayout);
       }
     }));

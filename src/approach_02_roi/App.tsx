@@ -10,7 +10,7 @@ import {
   addObjectAsJson,
   downloadZip
 } from './utils/exportExperimentData';
-import { ImageCropper, ImageCropperRef } from './ImageCropper';
+import { ImageCropper, ImageCropperRef, CropResult } from './ImageCropper';
 
 // 動画用のグローバルなタイムスタンプ
 // 動画のEffect内の変数だとバウンディングボックスの方で使えないのでグローバル
@@ -84,7 +84,7 @@ const App = () => {
   };
 
   // 切り取り範囲が更新・決定された時のハンドラ
-  const handleCropChange = async (croppedImg: HTMLImageElement) => {
+  const handleCropChange = async (cropResult: CropResult) => {
     if (mediaType === 'image') {
       if (imageRef.current) {
         const rawImg = new Image();
@@ -94,9 +94,9 @@ const App = () => {
       }
 
       const timestamp = imageTimestamp;
-      const detectedGroups = await getGroups(croppedImg);
+      const detectedGroups = await getGroups(cropResult.croppedImage);
       
-      addExtractedFrameAsPng(await imageToBlobAsync(croppedImg, 'image/png') as Blob, timestamp);
+      addExtractedFrameAsPng(await imageToBlobAsync(cropResult.croppedImage, 'image/png') as Blob, timestamp);
       setGroups(detectedGroups);
       addObjectAsJson(detectedGroups, timestamp);
     }
@@ -124,7 +124,8 @@ const App = () => {
         // 2. レンダリング後に cropperRef が利用可能になるため、クロップ画像を取得（取得できなければ元画像）
         let inputElement: HTMLImageElement = rawElement;
         if (cropperRef.current) {
-          inputElement = await cropperRef.current.getClippedImage();
+          const result = await cropperRef.current.getClippedImage();
+          inputElement = result.croppedImage;
         }
 
         const detectedGroups = await getGroups(inputElement);
@@ -168,7 +169,8 @@ const App = () => {
           // 2. cropperRef がある場合は切り抜き画像を、なければ元のフレーム画像を使用
           let processedImg: HTMLImageElement = rawImg;
           if (cropperRef.current) {
-            processedImg = await cropperRef.current.getClippedImage();
+            const result = await cropperRef.current.getClippedImage();
+            processedImg = result.croppedImage;
           }
 
           const detectedGroups = await getGroups(processedImg);

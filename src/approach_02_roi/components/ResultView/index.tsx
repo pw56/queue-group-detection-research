@@ -1,15 +1,18 @@
 import { useEffect, useRef } from 'react';
 import { Groups } from '../../getGroups';
 import { createParentBoundingBox } from './createParentBoundingBox';
+import { CroppedBoundingBox } from '../../ImageCropper/types';
 
 export const ResultView = ({
   mediaSource,
   groups,
+  croppedBoundingBox,
   onCanvasGenerated,
   className
 }: {
   mediaSource: HTMLImageElement | null;
   groups: Groups;
+  croppedBoundingBox?: CroppedBoundingBox;
   onCanvasGenerated?: (canvas: HTMLCanvasElement) => void;
   className?: string;
 }) => {
@@ -46,14 +49,17 @@ export const ResultView = ({
       if (group.every((person) => person)) {
         const groupBbox = createParentBoundingBox(group)!; // if文合格したなら大丈夫
         const { originX, originY, width: w, height: h } = groupBbox;
-        const offsetX = ctx.lineWidth,
-              offsetY = ctx.lineWidth;
+        
+        // croppedBoundingBox が存在する場合にオフセット座標を計算
+        const offsetX = croppedBoundingBox ? croppedBoundingBox.x : 0;
+        const offsetY = croppedBoundingBox ? croppedBoundingBox.y : 0;
+        const lineOffset = ctx.lineWidth;
         ctx.strokeStyle = 'red';
         ctx.strokeRect(
-          originX - offsetX,
-          originY - offsetY,
-          w + offsetX * 2,
-          h + offsetY * 2
+          originX + offsetX - lineOffset,
+          originY + offsetY - lineOffset,
+          w + lineOffset * 2,
+          h + lineOffset * 2
         );
       }
 
@@ -61,8 +67,11 @@ export const ResultView = ({
       group.forEach((person) => {
         if (person) {
           const { originX, originY, width: w, height: h } = person;
+          // croppedBoundingBox が存在する場合にオフセット座標を計算
+          const offsetX = croppedBoundingBox ? croppedBoundingBox.x : 0;
+          const offsetY = croppedBoundingBox ? croppedBoundingBox.y : 0;
           ctx.strokeStyle = 'green';
-          ctx.strokeRect(originX, originY, w, h);
+          ctx.strokeRect(originX + offsetX, originY + offsetY, w, h);
         }
       });
 
@@ -71,7 +80,7 @@ export const ResultView = ({
     // 受け取りハンドラが指定されていたら、合成された画像のキャンバスを転送
     if(onCanvasGenerated) onCanvasGenerated(canvas);
 
-  }, [mediaSource, groups]);
+  }, [mediaSource, groups, croppedBoundingBox]);
 
   return <canvas ref={canvasRef} className={className} />;
 };
