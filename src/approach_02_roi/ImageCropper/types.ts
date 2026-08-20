@@ -5,7 +5,6 @@ export interface ImageCropperProps {
   onCropChange?: (result: CropResult) => void;
 }
 
-// 変更: バウンディングボックスの型定義を追加
 export interface CroppedBoundingBox {
   x: number;
   y: number;
@@ -13,14 +12,12 @@ export interface CroppedBoundingBox {
   height: number;
 }
 
-// 変更: 切り取り結果の戻り値型定義を追加
 export interface CropResult {
   croppedImage: HTMLImageElement;
   boundingBox: CroppedBoundingBox;
 }
 
 export interface ImageCropperRef {
-  // 変更: 戻り値を CropResult に変更
   getClippedImage: () => Promise<CropResult>;
 }
 
