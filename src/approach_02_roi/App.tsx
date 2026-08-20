@@ -86,6 +86,13 @@ const App = () => {
   // 切り取り範囲が更新・決定された時のハンドラ
   const handleCropChange = async (croppedImg: HTMLImageElement) => {
     if (mediaType === 'image') {
+      if (imageRef.current) {
+        const rawImg = new Image();
+        rawImg.src = imageRef.current.src;
+        await rawImg.decode().catch(() => {});
+        setMediaFrame(rawImg);
+      }
+
       const timestamp = imageTimestamp;
       const detectedGroups = await getGroups(croppedImg);
       
@@ -109,7 +116,10 @@ const App = () => {
         const rawElement = imageRef.current!;
 
         // 1. まず元画像を mediaFrame に渡して ImageCropper をレンダリングさせる
-        setMediaFrame(rawElement);
+        const rawImg = new Image();
+        rawImg.src = rawElement.src;
+        await rawImg.decode().catch(() => {});
+        setMediaFrame(rawImg);
 
         // 2. レンダリング後に cropperRef が利用可能になるため、クロップ画像を取得（取得できなければ元画像）
         let inputElement: HTMLImageElement = rawElement;
