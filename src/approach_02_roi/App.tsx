@@ -3,7 +3,6 @@ import './global.css';
 import { getGroups, Groups } from './getGroups';
 import { ResultView } from './components/ResultView';
 import { imageToBlobAsync, videoToImageAsync, canvasToBlob } from './utils/toImage';
-import { CropInfo } from './ImageCropper/detectNonTransparentBounds';
 import {
   addInputMediaFile,
   addExtractedFrameAsPng,
@@ -34,7 +33,6 @@ const App = () => {
   // 合成結果表示用
   const [mediaFrame, setMediaFrame] = useState<HTMLImageElement | null>(null);
   const [groups, setGroups] = useState<Groups>([]);
-  const [cropInfo, setCropInfo] = useState<CropInfo | null>(null);
 
   // ダウンロードボタン制御用
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
@@ -87,12 +85,14 @@ const App = () => {
 
   // 切り取り範囲が更新・決定された時のハンドラ
   const handleCropChange = async (croppedImg: HTMLImageElement) => {
-    const timestamp = mediaType === 'image' ? imageTimestamp : videoTimestamp;
-    const detectedGroups = await getGroups(croppedImg);
-    
-    addExtractedFrameAsPng(await imageToBlobAsync(croppedImg, 'image/png') as Blob, timestamp);
-    setGroups(detectedGroups);
-    addObjectAsJson(detectedGroups, timestamp);
+    if (mediaType === 'image') {
+      const timestamp = imageTimestamp;
+      const detectedGroups = await getGroups(croppedImg);
+      
+      addExtractedFrameAsPng(await imageToBlobAsync(croppedImg, 'image/png') as Blob, timestamp);
+      setGroups(detectedGroups);
+      addObjectAsJson(detectedGroups, timestamp);
+    }
   };
 
   // メモリリーク対策：アンマウント時にオブジェクトURLを解放
@@ -113,18 +113,14 @@ const App = () => {
 
         // 2. レンダリング後に cropperRef が利用可能になるため、クロップ画像を取得（取得できなければ元画像）
         let inputElement: HTMLImageElement = rawElement;
-        let cropInfoData: CropInfo | null = null;
         if (cropperRef.current) {
-          const result = await cropperRef.current.getClippedImage();
-          inputElement = result.image;
-          cropInfoData = result.cropInfo;
+          inputElement = await cropperRef.current.getClippedImage();
         }
 
         const detectedGroups = await getGroups(inputElement);
         
         addExtractedFrameAsPng(await imageToBlobAsync(inputElement, 'image/png') as Blob, imageTimestamp);
         setGroups(detectedGroups);
-        setCropInfo(cropInfoData);
         addObjectAsJson(detectedGroups, imageTimestamp);
       };
       
@@ -161,17 +157,13 @@ const App = () => {
 
           // 2. cropperRef がある場合は切り抜き画像を、なければ元のフレーム画像を使用
           let processedImg: HTMLImageElement = rawImg;
-          let cropInfoData: CropInfo | null = null;
           if (cropperRef.current) {
-            const result = await cropperRef.current.getClippedImage();
-            processedImg = result.image;
-            cropInfoData = result.cropInfo;
+            processedImg = await cropperRef.current.getClippedImage();
           }
 
           const detectedGroups = await getGroups(processedImg);
           addExtractedFrameAsPng(await imageToBlobAsync(processedImg, 'image/png') as Blob, videoTimestamp);
           setGroups(detectedGroups);
-          setCropInfo(cropInfoData);
           addObjectAsJson(detectedGroups, videoTimestamp);
         }
       }
@@ -244,7 +236,6 @@ const App = () => {
             <ResultView 
               mediaSource={mediaFrame} 
               groups={groups}
-              cropInfo={cropInfo}
               onCanvasGenerated={(canvas) => {
                 (async () => {
                   await addAnnotatedImageAsPng(
