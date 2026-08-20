@@ -8,7 +8,8 @@
 ローカルでの環境構築を必要とせず、各アプローチによる検出結果の違いを確認できます。
 
 - **アプローチ1 (ベースライン手法)**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_01_baseline/dist)
-- **アプローチ2 (ROI処理手法)**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_02_roi/dist)
+- **アプローチ2 (事前指定の関心領域（ROI）による空間制限手法)**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_02_roi/dist)
+- **アプローチ3 (顔検出に基づく存在判定手法)**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_03_face_detection/dist)
 
 ## 推奨環境
 ### 論文執筆
