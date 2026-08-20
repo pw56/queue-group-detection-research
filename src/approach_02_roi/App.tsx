@@ -10,7 +10,7 @@ import {
   addObjectAsJson,
   downloadZip
 } from './utils/exportExperimentData';
-import { ImageCropper, ImageCropperRef, CropResult } from './ImageCropper';
+import { ImageCropper, ImageCropperRef, CropResult, CroppedBoundingBox } from './ImageCropper';
 
 // 動画用のグローバルなタイムスタンプ
 // 動画のEffect内の変数だとバウンディングボックスの方で使えないのでグローバル
@@ -33,6 +33,7 @@ const App = () => {
   // 合成結果表示用
   const [mediaFrame, setMediaFrame] = useState<HTMLImageElement | null>(null);
   const [groups, setGroups] = useState<Groups>([]);
+  const [croppedBoundingBox, setCroppedBoundingBox] = useState<CroppedBoundingBox | undefined>(undefined);
 
   // ダウンロードボタン制御用
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
@@ -93,6 +94,9 @@ const App = () => {
         setMediaFrame(rawImg);
       }
 
+      // 切り取り後のバウンディングボックスを State にセット
+      setCroppedBoundingBox(cropResult.boundingBox);
+
       const timestamp = imageTimestamp;
       const detectedGroups = await getGroups(cropResult.croppedImage);
       
@@ -126,6 +130,7 @@ const App = () => {
         if (cropperRef.current) {
           const result = await cropperRef.current.getClippedImage();
           inputElement = result.croppedImage;
+          setCroppedBoundingBox(result.boundingBox);
         }
 
         const detectedGroups = await getGroups(inputElement);
@@ -171,6 +176,7 @@ const App = () => {
           if (cropperRef.current) {
             const result = await cropperRef.current.getClippedImage();
             processedImg = result.croppedImage;
+            setCroppedBoundingBox(result.boundingBox);
           }
 
           const detectedGroups = await getGroups(processedImg);
@@ -248,6 +254,7 @@ const App = () => {
             <ResultView 
               mediaSource={mediaFrame} 
               groups={groups}
+              croppedBoundingBox={croppedBoundingBox}
               onCanvasGenerated={(canvas) => {
                 (async () => {
                   await addAnnotatedImageAsPng(
