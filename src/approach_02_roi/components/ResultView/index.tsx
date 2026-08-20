@@ -1,15 +1,18 @@
 import { useEffect, useRef } from 'react';
 import { Groups } from '../../getGroups';
+import { CropInfo } from '../../ImageCropper/detectNonTransparentBounds';
 import { createParentBoundingBox } from './createParentBoundingBox';
 
 export const ResultView = ({
   mediaSource,
   groups,
+  cropInfo,
   onCanvasGenerated,
   className
 }: {
   mediaSource: HTMLImageElement | null;
   groups: Groups;
+  cropInfo: CropInfo | null;
   onCanvasGenerated?: (canvas: HTMLCanvasElement) => void;
   className?: string;
 }) => {
@@ -45,7 +48,14 @@ export const ResultView = ({
       // グループのbboxを描画
       if (group.every((person) => person)) {
         const groupBbox = createParentBoundingBox(group)!; // if文合格したなら大丈夫
-        const { originX, originY, width: w, height: h } = groupBbox;
+        let { originX, originY, width: w, height: h } = groupBbox;
+        
+        // 切り抜き情報がある場合は座標をマッピング
+        if (cropInfo) {
+          originX += cropInfo.offsetX;
+          originY += cropInfo.offsetY;
+        }
+        
         const offsetX = ctx.lineWidth,
               offsetY = ctx.lineWidth;
         ctx.strokeStyle = 'red';
@@ -60,7 +70,14 @@ export const ResultView = ({
       // グループに含まれる人物のbboxを描画
       group.forEach((person) => {
         if (person) {
-          const { originX, originY, width: w, height: h } = person;
+          let { originX, originY, width: w, height: h } = person;
+          
+          // 切り抜き情報がある場合は座標をマッピング
+          if (cropInfo) {
+            originX += cropInfo.offsetX;
+            originY += cropInfo.offsetY;
+          }
+          
           ctx.strokeStyle = 'green';
           ctx.strokeRect(originX, originY, w, h);
         }
@@ -71,7 +88,7 @@ export const ResultView = ({
     // 受け取りハンドラが指定されていたら、合成された画像のキャンバスを転送
     if(onCanvasGenerated) onCanvasGenerated(canvas);
 
-  }, [mediaSource, groups]);
+  }, [mediaSource, groups, cropInfo]);
 
   return <canvas ref={canvasRef} className={className} />;
 };
