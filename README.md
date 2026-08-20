@@ -7,7 +7,8 @@
 論文内で考案したグループ検出のアプローチの挙動を、ブラウザ上で検証できるデモページです。
 ローカルでの環境構築を必要とせず、各アプローチによる検出結果の違いを確認できます。
 
-- **アプローチ1 (ベースライン手法)**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_01_baseline/)
+- **アプローチ1 (ベースライン手法)**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_01_baseline/dist)
+- **アプローチ2 (ROI処理手法)**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_02_roi/dist)
 
 ## 推奨環境
 ### 論文執筆
