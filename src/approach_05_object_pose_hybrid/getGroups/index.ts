@@ -1,15 +1,15 @@
 import { Groups, GroupDetectionImageSource } from './types';
 import { detectPeople } from './detectPeople';
 import { convertToGroups } from './convertToGroups';
-import { WorkerManager } from './workerManager';
+import { PoseValidator } from './poseValidator';
 
 // グループの検出 (人物をグループに見せかけてそのまま返す)
 export async function getGroups(imageSource: GroupDetectionImageSource): Promise<Groups> {
 
   if (!imageSource) throw new Error("No input data exists");
 
-  let workerManager: WorkerManager | null = null;
   let canvas: HTMLCanvasElement | null = null;
+  let poseValidator: PoseValidator | null = null;
 
   try {
     // 1. オブジェクト検出で人物の候補（低い信頼度）を取得
@@ -31,46 +31,48 @@ export async function getGroups(imageSource: GroupDetectionImageSource): Promise
     if (!ctx) throw new Error("Failed to get 2D context");
     ctx.drawImage(imageSource, 0, 0);
 
-    // 3. ワーカーマネージャーの初期化（ワーカー数の固定）
-    workerManager = new WorkerManager(4);
-    await workerManager.initialize(width, height);
+    // 3. メインスレッド用 GPU PoseValidator の初期化
+    poseValidator = new PoseValidator();
+    await poseValidator.initialize();
 
-    // 4. Promise.all で候補のバウンディングボックスから createImageBitmap でマージンなしで切り出し、同時にワーカーに投入
-    const processPromises = detections.map(async (detection) => {
-      const { angle, ...restBoundingBox } = detection.boundingBox!;
-      
-      // 画像の切り出し座標（キャンバス範囲外へのはみ出しをクランプ）
-      const sx = Math.max(0, Math.floor(restBoundingBox.originX));
-      const sy = Math.max(0, Math.floor(restBoundingBox.originY));
-      const sw = Math.min(width - sx, Math.floor(restBoundingBox.width));
-      const sh = Math.min(height - sy, Math.floor(restBoundingBox.height));
+    // 4. Promise.all で全候補のバウンディングボックスをマージンなしで createImageBitmap 切り出し
+    const crops = await Promise.all(
+      detections.map(async (detection) => {
+        const { angle, ...restBoundingBox } = detection.boundingBox!;
 
-      // createImageBitmap によりバウンディングボックスの範囲で切り出し
-      const imageBitmap = await createImageBitmap(canvas!, sx, sy, Math.max(1, sw), Math.max(1, sh));
+        // 切り出し座標のクランプ処理（範囲外や幅・高さが0以下になる例外を回避）
+        const sx = Math.max(0, Math.min(width - 1, Math.floor(restBoundingBox.originX)));
+        const sy = Math.max(0, Math.min(height - 1, Math.floor(restBoundingBox.originY)));
+        const sw = Math.max(1, Math.min(width - sx, Math.floor(restBoundingBox.width)));
+        const sh = Math.max(1, Math.min(height - sy, Math.floor(restBoundingBox.height)));
 
-      // ワーカーに依頼
-      return workerManager!.processJob({
-        imageBitmap,
-        boundingBox: restBoundingBox
-      });
-    });
+        const imageBitmap = await createImageBitmap(canvas!, sx, sy, sw, sh);
 
-    // 5. 並列処理の結果を待機
-    const workerResults = await Promise.all(processPromises);
+        return {
+          imageBitmap,
+          boundingBox: restBoundingBox
+        };
+      })
+    );
 
-    // 6. ポーズ検出により人物として正しく認定された候補のみ抽出
-    const validatedPeople = workerResults
-      .filter(result => result.isValidPerson)
-      .map(result => result.boundingBox);
+    // 5. GPUを使った高速ループ処理で各切り出し画像を検証
+    const validatedPeople = [];
+    for (const crop of crops) {
+      const isValid = await poseValidator.validateCrop(crop.imageBitmap);
+      if (isValid) {
+        validatedPeople.push(crop.boundingBox);
+      }
+    }
 
     const groups = convertToGroups(validatedPeople);
     return groups;
   } catch (error) {
     throw new Error("Detection error", { cause: error });
   } finally {
-    // メモリ破棄・解放処理
-    if (workerManager) {
-      workerManager.terminate();
+    // 解放処理
+    if (poseValidator) {
+      poseValidator.close();
+      poseValidator = null;
     }
     if (canvas) {
       canvas.width = 0;
