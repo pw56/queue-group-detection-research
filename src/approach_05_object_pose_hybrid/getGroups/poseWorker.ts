@@ -1,7 +1,12 @@
-import { PoseLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 import { WorkerInMessage, WorkerResultMessage } from './types';
 
-let poseLandmarker: PoseLandmarker | null = null;
+// ESMの import { PoseLandmarker, FilesetResolver } ではなく
+// importScripts 経由でグローバルスコープ（self.vision）に読み込みます
+importScripts('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.js');
+
+declare const self: any;
+
+let poseLandmarker: any = null;
 let offscreenCanvas: OffscreenCanvas | null = null;
 let offscreenCtx: OffscreenCanvasRenderingContext2D | null = null;
 
@@ -10,6 +15,9 @@ let poseResultCache: any = null;
 
 async function initPoseLandmarker(): Promise<void> {
   if (!poseLandmarker) {
+    // vision_bundle.js によりグローバルに展開された vision オブジェクトを参照
+    const { PoseLandmarker, FilesetResolver } = self.vision;
+
     const vision = await FilesetResolver.forVisionTasks(
       "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm"
     );
@@ -54,7 +62,9 @@ self.onmessage = async (event: MessageEvent<WorkerInMessage>) => {
       offscreenCtx.drawImage(imageBitmap, 0, 0);
 
       // 描画後はImageBitmapを破棄してメモリ解放
-      imageBitmap.close();
+      try {
+        imageBitmap.close();
+      } catch (_) {}
 
       // Pose 検出実行 (スコープ外の変数に格納)
       poseResultCache = poseLandmarker.detect(offscreenCanvas);
@@ -77,8 +87,10 @@ self.onmessage = async (event: MessageEvent<WorkerInMessage>) => {
 
       self.postMessage(response);
     } catch (err: any) {
-      // エラー発生時も元のImageBitmapは確実に破棄
-      imageBitmap.close();
+      // エラー発生時も安全にImageBitmapを破棄
+      try {
+        imageBitmap.close();
+      } catch (_) {}
       poseResultCache = null;
 
       const response: WorkerResultMessage = {

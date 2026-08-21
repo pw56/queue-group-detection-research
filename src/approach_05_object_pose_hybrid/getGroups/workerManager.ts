@@ -26,8 +26,8 @@ export class WorkerManager {
     const initPromises: Promise<void>[] = [];
 
     for (let i = 0; i < this.#poolSize; i++) {
-      // Vite などのモジュールバンドラ対応のWorker作成
-      const worker = new Worker(new URL('./poseWorker.ts', import.meta.url), { type: 'module' });
+      // type: 'module' を削除し、Classic Worker として生成
+      const worker = new Worker(new URL('./poseWorker.ts', import.meta.url));
 
       // INIT 完了を待つPromiseを作成
       const initPromise = new Promise<void>((resolve, reject) => {
@@ -111,6 +111,12 @@ export class WorkerManager {
   terminate(): void {
     for (const worker of this.#workers) {
       worker.terminate();
+    }
+    // 未送信のタスクに含まれる ImageBitmap を解放
+    for (const task of this.#taskQueue) {
+      try {
+        task.job.imageBitmap.close();
+      } catch (_) {}
     }
     this.#workers = [];
     this.#idleWorkers = [];
