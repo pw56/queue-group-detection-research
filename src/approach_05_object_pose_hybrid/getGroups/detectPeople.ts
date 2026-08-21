@@ -2,7 +2,6 @@ import { ObjectDetector, FilesetResolver, Detection, Category } from '@mediapipe
 import { GroupDetectionImageSource } from './types';
 
 let objectDetector: ObjectDetector | null = null;
-let detectionResultsCache: any = null; // OOM防止用の結果用変数のスコープ外宣言
 
 // Detectorの初期化
 async function initializeDetector(): Promise<void> {
@@ -34,22 +33,17 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
   if (!imageSource) throw new Error("No input data exists");
 
   try {
-    // スコープ外の変数に一度格納
-    detectionResultsCache = objectDetector!.detect(imageSource);
+    const result = objectDetector!.detect(imageSource);
     
-    const people = detectionResultsCache.detections.filter((detection: Detection) => {
+    const people = result.detections.filter((detection: Detection) => {
       return detection.categories.some((category: Category) => {
-        // 信頼度（スコア）で人物のみに絞り込む (後段のPoseLandmarkerで精査するため低いスコア 0.1 を採用)
+        // 信頼度（スコア）で人物のみに絞り込む
         return category.categoryName === 'person' && category.score >= 0.1;
       });
     });
 
-    // 参照をクリア
-    detectionResultsCache = null;
-
     return people;
   } catch (error) {
-    detectionResultsCache = null;
     throw new Error("Detection error", { cause: error });
   }
 }
