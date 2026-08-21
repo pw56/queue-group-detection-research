@@ -7,4 +7,4 @@ type Groups = Group[];
 type GroupDetectionImageSource = HTMLImageElement;
 
 export type { Group, Groups, GroupDetectionImageSource };
-export { type Detection, type BoundingBox } from '@mediapipe/tasks-vision';
+export { type BoundingBox } from '@mediapipe/tasks-vision';
