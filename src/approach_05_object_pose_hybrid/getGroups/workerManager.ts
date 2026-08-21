@@ -29,6 +29,23 @@ export class WorkerManager {
       // Vite などのモジュールバンドラ対応のWorker作成
       const worker = new Worker(new URL('./poseWorker.ts', import.meta.url), { type: 'module' });
 
+      // INIT 完了を待つPromiseを作成
+      const initPromise = new Promise<void>((resolve, reject) => {
+        const handleInit = (event: MessageEvent) => {
+          if (event.data?.type === 'INIT_COMPLETE') {
+            worker.removeEventListener('message', handleInit);
+            this.#idleWorkers.push(worker);
+            resolve();
+          } else if (event.data?.error) {
+            worker.removeEventListener('message', handleInit);
+            reject(new Error(event.data.error));
+          }
+        };
+        worker.addEventListener('message', handleInit);
+      });
+
+      initPromises.push(initPromise);
+
       worker.onmessage = (event: MessageEvent<WorkerResultMessage>) => {
         this.#handleWorkerMessage(worker, event.data);
       };
@@ -38,12 +55,12 @@ export class WorkerManager {
       };
 
       this.#workers.push(worker);
-      this.#idleWorkers.push(worker);
 
       const initMsg: WorkerInMessage = { type: 'INIT', width, height };
       worker.postMessage(initMsg);
     }
 
+    await Promise.all(initPromises);
     this.#isInitialized = true;
   }
 

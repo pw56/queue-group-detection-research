@@ -27,11 +27,16 @@ self.onmessage = async (event: MessageEvent<WorkerInMessage>) => {
   const data = event.data;
 
   if (data.type === 'INIT') {
-    if (!offscreenCanvas) {
-      offscreenCanvas = new OffscreenCanvas(data.width, data.height);
-      offscreenCtx = offscreenCanvas.getContext('2d');
+    try {
+      if (!offscreenCanvas) {
+        offscreenCanvas = new OffscreenCanvas(data.width, data.height);
+        offscreenCtx = offscreenCanvas.getContext('2d');
+      }
+      await initPoseLandmarker();
+      self.postMessage({ type: 'INIT_COMPLETE' });
+    } catch (err: any) {
+      self.postMessage({ error: err?.message || "Worker initialization failed" });
     }
-    await initPoseLandmarker();
     return;
   }
 
@@ -42,10 +47,10 @@ self.onmessage = async (event: MessageEvent<WorkerInMessage>) => {
         throw new Error("Worker is not properly initialized");
       }
 
-      // キャンバスをクリアして転送されたImageBitmapを描画
-      offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+      // キャンバスサイズ調整後に描画
       offscreenCanvas.width = imageBitmap.width;
       offscreenCanvas.height = imageBitmap.height;
+      offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
       offscreenCtx.drawImage(imageBitmap, 0, 0);
 
       // 描画後はImageBitmapを破棄してメモリ解放
