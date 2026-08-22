@@ -111,12 +111,9 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
       // createImageBitmap でバウンディングボックスの範囲を指定して切り出し
       const imageBitmap = await createImageBitmap(sharedCanvas!, sx, sy, sw, sh);
 
-      const clonedBitmap = structuredClone(imageBitmap, { transfer: [imageBitmap] });
-      imageBitmap.close();
-
       try {
         const res = await workerPoolManager.processCandidate(
-          clonedBitmap,
+          imageBitmap,
           rect,
           index,
           imgWidth,
@@ -124,7 +121,7 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
         );
         return { isPerson: res.isPerson, index };
       } catch (err) {
-        clonedBitmap.close();
+        imageBitmap.close();
         return { isPerson: false, index };
       }
     });
