@@ -3,19 +3,11 @@ import { createDetector, SupportedModels, Pose } from '@tensorflow-models/pose-d
 import { WorkerIncomingMessage, WorkerResultMessage } from './types';
 
 let detector: any = null;
-let offscreenCanvas: OffscreenCanvas | null = null;
-let offscreenCtx: OffscreenCanvasRenderingContext2D | null = null;
 
 // OOM防止のためスコープ外で宣言・使い回すバッファ変数
 let currentPoses: Pose[] = [];
 
 async function initWorker(width: number, height: number) {
-  if (!offscreenCanvas) {
-    // 元画像サイズで固定キャンバスを1つだけ生成
-    offscreenCanvas = new OffscreenCanvas(width, height);
-    offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
-  }
-
   if (!detector) {
     await tf.ready();
     detector = await createDetector(
@@ -45,13 +37,9 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
     let errorMessage: string | undefined = undefined;
 
     try {
-      if (!offscreenCanvas || !offscreenCtx || !detector) {
+      if (!detector) {
         throw new Error('Worker is not initialized');
       }
-
-      // キャンバスサイズの変更（リサイズ）を行わず、固定キャンバスに切り出しBitmapをそのまま描画
-      offscreenCtx.clearRect(0, 0, imageBitmap.width, imageBitmap.height);
-      offscreenCtx.drawImage(imageBitmap, 0, 0);
 
       // ポーズ検出実行（スコープ外バッファの参照を再利用）
       for (let i = 0; i < currentPoses.length; i++) {
@@ -59,7 +47,8 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
       }
       currentPoses.length = 0;
 
-      const poses = await detector.estimatePoses(offscreenCanvas);
+      // キャンバスを介さず、マネージャーから渡された imageBitmap を直接推論に渡す
+      const poses = await detector.estimatePoses(imageBitmap);
       for (let i = 0; i < poses.length; i++) {
         currentPoses.push(poses[i]);
       }
