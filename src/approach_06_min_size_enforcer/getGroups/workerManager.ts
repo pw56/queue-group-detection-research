@@ -5,7 +5,7 @@ interface Task {
   imageBitmap: ImageBitmap;
   rect: BoundingBoxRect;
   resolve: (result: WorkerResultMessage) => void;
-  reject: (reason: any) => void;
+  reject: (reason: unknown) => void;
 }
 
 export class WorkerPoolManager {
@@ -102,7 +102,7 @@ export class WorkerPoolManager {
     };
 
     try {
-      // 所有権移転（Transferable）でデータ無駄転送を削減
+      // 所有権移転（Transferable）でデータ転送を最適化
       worker.postMessage(message, [task.imageBitmap]);
     } catch (postErr) {
       cleanup();
