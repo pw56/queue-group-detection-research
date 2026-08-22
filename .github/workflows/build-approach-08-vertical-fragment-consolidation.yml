@@ -1,0 +1,17 @@
+name: Build approach_08_vertical_fragment_consolidation
+
+on:
+  push:
+    paths:
+      - 'src/approach_08_vertical_fragment_consolidation/**'
+
+# GitHub Pages へのデプロイに必要な権限を設定
+permissions:
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    uses: ./.github/workflows/build-and-deploy.yml
+    with:
+      directory: ./src/approach_08_vertical_fragment_consolidation
