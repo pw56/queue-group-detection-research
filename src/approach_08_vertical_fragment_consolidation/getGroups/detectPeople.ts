@@ -12,7 +12,8 @@ let sharedCtx: CanvasRenderingContext2D | null = null;
 let candidateDetectionsBuffer: Detection[] = [];
 let filteredDetectionsBuffer: Detection[] = [];
 let evaluatedDetectionsBuffer: Detection[] = [];
-let verticalMergedBuffer: Detection[] = [];
+let sortedDetectionsBuffer: Detection[] = [];
+let finalDetectionsBuffer: Detection[] = [];
 
 // 領域の重なり具合（IoU / Intersection over Union）を算出する関数
 function calculateIoU(boxA: BoundingBoxRect, boxB: BoundingBoxRect): number {
@@ -47,7 +48,19 @@ function getLargerBox(boxA: BoundingBoxRect, boxB: BoundingBoxRect): BoundingBox
   return areaA >= areaB ? boxA : boxB;
 }
 
-// Y軸（縦方向）の重なり率を算出する関数
+// X軸（横方向）の重なり率を算出する関数（小さい方の幅に対する割合）
+function calculateHorizontalOverlapRatio(boxA: BoundingBoxRect, boxB: BoundingBoxRect): number {
+  const x1 = Math.max(boxA.originX, boxB.originX);
+  const x2 = Math.min(boxA.originX + boxA.width, boxB.originX + boxB.width);
+  const intersectionWidth = Math.max(0, x2 - x1);
+
+  if (intersectionWidth === 0) return 0;
+
+  const minWidth = Math.min(boxA.width, boxB.width);
+  return intersectionWidth / minWidth;
+}
+
+// Y軸（縦方向）の重なり率を算出する関数（小さい方の高さに対する割合）
 function calculateVerticalOverlapRatio(boxA: BoundingBoxRect, boxB: BoundingBoxRect): number {
   const y1 = Math.max(boxA.originY, boxB.originY);
   const y2 = Math.min(boxA.originY + boxA.height, boxB.originY + boxB.height);
@@ -124,10 +137,15 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
     }
     evaluatedDetectionsBuffer.length = 0;
 
-    for (let i = 0; i < verticalMergedBuffer.length; i++) {
-      (verticalMergedBuffer as any)[i] = null;
+    for (let i = 0; i < sortedDetectionsBuffer.length; i++) {
+      (sortedDetectionsBuffer as any)[i] = null;
     }
-    verticalMergedBuffer.length = 0;
+    sortedDetectionsBuffer.length = 0;
+
+    for (let i = 0; i < finalDetectionsBuffer.length; i++) {
+      (finalDetectionsBuffer as any)[i] = null;
+    }
+    finalDetectionsBuffer.length = 0;
 
     for (let i = 0; i < result.detections.length; i++) {
       const detection = result.detections[i];
@@ -258,36 +276,44 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
       }
     }
 
-    // --- 縦方向（Y方向）の乱立対策 ---
-    // 全ての重複判定が終わった後、Y方向の重なり割合を検証し閾値を超えたら統合する
-    const VERTICAL_OVERLAP_THRESHOLD = 0.6;
-
+    // --- 縦方向の乱立対策 ---
+    // 1. 横方向（originX）座標の昇順で並び替える
     for (let i = 0; i < evaluatedDetectionsBuffer.length; i++) {
-      let current = evaluatedDetectionsBuffer[i];
+      sortedDetectionsBuffer.push(evaluatedDetectionsBuffer[i]);
+    }
+    sortedDetectionsBuffer.sort((a, b) => a.boundingBox!.originX - b.boundingBox!.originX);
+
+    // 2. 横方向（X軸）の被りが基準（8割以上）かつ、縦方向（Y軸）の重なりも基準（8割以上）を満たしている（同じ縦軸上で乱立している兄弟領域）場合に結合する
+    const HORIZONTAL_OVERLAP_THRESHOLD = 0.8;
+    const VERTICAL_OVERLAP_THRESHOLD = 0.8;
+
+    for (let i = 0; i < sortedDetectionsBuffer.length; i++) {
+      let current = sortedDetectionsBuffer[i];
       if (!current || !current.boundingBox) continue;
 
       let isMerged = false;
 
-      for (let j = 0; j < verticalMergedBuffer.length; j++) {
-        const existing = verticalMergedBuffer[j];
+      for (let j = 0; j < finalDetectionsBuffer.length; j++) {
+        const existing = finalDetectionsBuffer[j];
         if (!existing || !existing.boundingBox) continue;
 
+        const hOverlap = calculateHorizontalOverlapRatio(current.boundingBox, existing.boundingBox);
         const vOverlap = calculateVerticalOverlapRatio(current.boundingBox, existing.boundingBox);
 
-        if (vOverlap >= VERTICAL_OVERLAP_THRESHOLD) {
-          // 縦方向の重なりが大きいため親バウンディングボックスとして結合・置換
-          verticalMergedBuffer[j] = createMergedDetection(existing, current);
+        if (hOverlap >= HORIZONTAL_OVERLAP_THRESHOLD && vOverlap >= VERTICAL_OVERLAP_THRESHOLD) {
+          // 被っている同一縦軸上の領域を結合して包摂バウンディングボックスを作成
+          finalDetectionsBuffer[j] = createMergedDetection(existing, current);
           isMerged = true;
           break;
         }
       }
 
       if (!isMerged) {
-        verticalMergedBuffer.push(current);
+        finalDetectionsBuffer.push(current);
       }
     }
 
-    const finalResult = [...verticalMergedBuffer];
+    const finalResult = [...finalDetectionsBuffer];
 
     // 明示的な参照の解放
     for (let i = 0; i < candidateDetectionsBuffer.length; i++) {
@@ -305,10 +331,15 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
     }
     evaluatedDetectionsBuffer.length = 0;
 
-    for (let i = 0; i < verticalMergedBuffer.length; i++) {
-      (verticalMergedBuffer as any)[i] = null;
+    for (let i = 0; i < sortedDetectionsBuffer.length; i++) {
+      (sortedDetectionsBuffer as any)[i] = null;
     }
-    verticalMergedBuffer.length = 0;
+    sortedDetectionsBuffer.length = 0;
+
+    for (let i = 0; i < finalDetectionsBuffer.length; i++) {
+      (finalDetectionsBuffer as any)[i] = null;
+    }
+    finalDetectionsBuffer.length = 0;
 
     return finalResult;
   } catch (error) {
