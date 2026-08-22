@@ -42,6 +42,9 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
     let errorMessage: string | undefined = undefined;
     let inputBitmapToEstimate: ImageBitmap | null = null;
 
+    // 推論時に生成されるTensorを管理・解放するためのTensorFlowスコープの準備
+    tf.engine().startScope();
+
     try {
       if (!detector) {
         throw new Error('Worker is not initialized');
@@ -113,6 +116,9 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
     } catch (error: any) {
       errorMessage = error?.message || 'Unknown worker error';
     } finally {
+      // 推論過程で保持された不要なTensorメモリを一括解放
+      tf.engine().endScope();
+
       // 生成した一時ビットマップがあればクローズ解放
       if (inputBitmapToEstimate && inputBitmapToEstimate !== imageBitmap) {
         inputBitmapToEstimate.close();
