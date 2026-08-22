@@ -1,6 +1,6 @@
 import * as tf from '@tensorflow/tfjs';
 import { createDetector, SupportedModels, Pose } from '@tensorflow-models/pose-detection/dist';
-import { WorkerIncomingMessage, WorkerResultMessage, BoundingBoxRect } from './types';
+import { WorkerIncomingMessage, WorkerResultMessage, BoundingBoxRect } from '../types';
 
 let detector: any = null;
 

@@ -1,4 +1,4 @@
-import { WorkerIncomingMessage, WorkerResultMessage, BoundingBoxRect } from './types';
+import { WorkerIncomingMessage, WorkerResultMessage, BoundingBoxRect } from '../types';
 
 interface Task {
   id: number;
