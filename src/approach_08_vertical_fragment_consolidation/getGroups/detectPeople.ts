@@ -276,8 +276,8 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
     }
     sortedDetectionsBuffer.sort((a, b) => a.boundingBox!.originX - b.boundingBox!.originX);
 
-    // 2. 横方向（X軸）の重なりが閾値（8割以上）を満たしている場合に結合する
-    const HORIZONTAL_OVERLAP_THRESHOLD = 0.8;
+    // 2. 横方向（X軸）の重なりが閾値（50%以上）を満たしている場合に結合する
+    const HORIZONTAL_OVERLAP_THRESHOLD = 0.50;
 
     for (let i = 0; i < sortedDetectionsBuffer.length; i++) {
       let current = sortedDetectionsBuffer[i];
