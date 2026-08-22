@@ -48,7 +48,7 @@ function getLargerBox(boxA: BoundingBoxRect, boxB: BoundingBoxRect): BoundingBox
   return areaA >= areaB ? boxA : boxB;
 }
 
-// X軸（横方向）の重なり率を算出する関数（小さい方の幅に対する割合）
+// X軸（横方向）の重なり率を算出する関数（Intersection / Union および Intersection / MinWidth の最大値）
 function calculateHorizontalOverlapRatio(boxA: BoundingBoxRect, boxB: BoundingBoxRect): number {
   const x1 = Math.max(boxA.originX, boxB.originX);
   const x2 = Math.min(boxA.originX + boxA.width, boxB.originX + boxB.width);
@@ -57,19 +57,12 @@ function calculateHorizontalOverlapRatio(boxA: BoundingBoxRect, boxB: BoundingBo
   if (intersectionWidth === 0) return 0;
 
   const minWidth = Math.min(boxA.width, boxB.width);
-  return intersectionWidth / minWidth;
-}
+  const unionWidth = Math.max(boxA.originX + boxA.width, boxB.originX + boxB.width) - Math.min(boxA.originX, boxB.originX);
 
-// Y軸（縦方向）の重なり率を算出する関数（小さい方の高さに対する割合）
-function calculateVerticalOverlapRatio(boxA: BoundingBoxRect, boxB: BoundingBoxRect): number {
-  const y1 = Math.max(boxA.originY, boxB.originY);
-  const y2 = Math.min(boxA.originY + boxA.height, boxB.originY + boxB.height);
-  const intersectionHeight = Math.max(0, y2 - y1);
+  const overlapRatio = intersectionWidth / minWidth;
+  const iouX = intersectionWidth / unionWidth;
 
-  if (intersectionHeight === 0) return 0;
-
-  const minHeight = Math.min(boxA.height, boxB.height);
-  return intersectionHeight / minHeight;
+  return Math.max(iouX, overlapRatio);
 }
 
 // 2つの Detection オブジェクトのバウンディングボックスを統合した親バウンディングボックスを作成する関数
@@ -276,16 +269,15 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
       }
     }
 
-    // --- 縦方向の乱立対策 ---
+    // --- 縦方向の乱立対策（X軸方向の重なり判定のみで結合） ---
     // 1. 横方向（originX）座標の昇順で並び替える
     for (let i = 0; i < evaluatedDetectionsBuffer.length; i++) {
       sortedDetectionsBuffer.push(evaluatedDetectionsBuffer[i]);
     }
     sortedDetectionsBuffer.sort((a, b) => a.boundingBox!.originX - b.boundingBox!.originX);
 
-    // 2. 横方向（X軸）の被りが基準（8割以上）かつ、縦方向（Y軸）の重なりも基準（8割以上）を満たしている（同じ縦軸上で乱立している兄弟領域）場合に結合する
+    // 2. 横方向（X軸）の重なりが閾値（8割以上）を満たしている場合に結合する
     const HORIZONTAL_OVERLAP_THRESHOLD = 0.8;
-    const VERTICAL_OVERLAP_THRESHOLD = 0.8;
 
     for (let i = 0; i < sortedDetectionsBuffer.length; i++) {
       let current = sortedDetectionsBuffer[i];
@@ -298,10 +290,9 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
         if (!existing || !existing.boundingBox) continue;
 
         const hOverlap = calculateHorizontalOverlapRatio(current.boundingBox, existing.boundingBox);
-        const vOverlap = calculateVerticalOverlapRatio(current.boundingBox, existing.boundingBox);
 
-        if (hOverlap >= HORIZONTAL_OVERLAP_THRESHOLD && vOverlap >= VERTICAL_OVERLAP_THRESHOLD) {
-          // 被っている同一縦軸上の領域を結合して包摂バウンディングボックスを作成
+        if (hOverlap >= HORIZONTAL_OVERLAP_THRESHOLD) {
+          // X軸の重なりが基準を超えている場合、領域を統合して親バウンディングボックスを作成
           finalDetectionsBuffer[j] = createMergedDetection(existing, current);
           isMerged = true;
           break;
