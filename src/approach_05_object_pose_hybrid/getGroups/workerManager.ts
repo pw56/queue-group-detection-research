@@ -67,10 +67,15 @@ export class WorkerPoolManager {
       worker.removeEventListener('error', onError);
     };
 
+    const cleanup = () => {
+      cleanupListeners();
+      this.#activeTasks.delete(task.id);
+      task.imageBitmap.close();
+    };
+
     const onMessage = (event: MessageEvent<WorkerResultMessage>) => {
       if (event.data.id === task.id) {
-        cleanupListeners();
-        this.#activeTasks.delete(task.id);
+        cleanup();
         this.#idleWorkers.push(worker);
 
         task.resolve(event.data);
@@ -79,8 +84,7 @@ export class WorkerPoolManager {
     };
 
     const onError = (error: ErrorEvent) => {
-      cleanupListeners();
-      this.#activeTasks.delete(task.id);
+      cleanup();
       this.#idleWorkers.push(worker);
 
       task.reject(error);
@@ -101,10 +105,8 @@ export class WorkerPoolManager {
       // 所有権移転（Transferable）でデータ無駄転送を削減
       worker.postMessage(message, [task.imageBitmap]);
     } catch (postErr) {
-      cleanupListeners();
-      this.#activeTasks.delete(task.id);
+      cleanup();
       this.#idleWorkers.push(worker);
-      task.imageBitmap.close();
       task.reject(postErr);
       this.#dispatch();
     }
@@ -116,10 +118,14 @@ export class WorkerPoolManager {
     }
     this.#taskQueue = [];
 
+    for (const task of this.#activeTasks.values()) {
+      task.imageBitmap.close();
+    }
+    this.#activeTasks.clear();
+
     this.#workers.forEach(w => w.terminate());
     this.#workers = [];
     this.#idleWorkers = [];
-    this.#activeTasks.clear();
     this.#isInitialized = false;
   }
 }
