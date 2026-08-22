@@ -1,6 +1,6 @@
 import { ObjectDetector, FilesetResolver, Detection, Category } from '@mediapipe/tasks-vision';
 import { GroupDetectionImageSource, BoundingBoxRect } from './types';
-import { workerPoolManager } from './workerManager';
+import { workerPoolManager } from './workers';
 
 let objectDetector: ObjectDetector | null = null;
 
