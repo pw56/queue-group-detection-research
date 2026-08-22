@@ -4,7 +4,11 @@ import { workerPoolManager } from './workerManager';
 
 let objectDetector: ObjectDetector | null = null;
 
-// 連続稼働時のOOMを防ぐため、検出結果バッファをスコープ外で宣言して使い回し
+// OOM防止: 非表示キャンバスを1つ生成し使い回す
+let sharedCanvas: HTMLCanvasElement | null = null;
+let sharedCtx: CanvasRenderingContext2D | null = null;
+
+// 連続稼働時のOOMを防ぐため、検出結果バッファをスコープ外で宣言して使い回す
 let candidateDetectionsBuffer: Detection[] = [];
 let filteredDetectionsBuffer: Detection[] = [];
 
@@ -40,8 +44,15 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
   try {
     const result = objectDetector!.detect(imageSource);
     
-    // スコープ外バッファの初期化・再利用
+    // バッファのクリア（参照破棄）
+    for (let i = 0; i < candidateDetectionsBuffer.length; i++) {
+      (candidateDetectionsBuffer as any)[i] = null;
+    }
     candidateDetectionsBuffer.length = 0;
+
+    for (let i = 0; i < filteredDetectionsBuffer.length; i++) {
+      (filteredDetectionsBuffer as any)[i] = null;
+    }
     filteredDetectionsBuffer.length = 0;
 
     for (let i = 0; i < result.detections.length; i++) {
@@ -62,17 +73,19 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
     const imgWidth = imageSource.naturalWidth || imageSource.width;
     const imgHeight = imageSource.naturalHeight || imageSource.height;
 
-    // 非表示キャンバスの生成（源流でビットマップ切り出しに使用）
-    const canvas = document.createElement('canvas');
-    canvas.width = imgWidth;
-    canvas.height = imgHeight;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    // 非表示キャンバスの再利用
+    if (!sharedCanvas) {
+      sharedCanvas = document.createElement('canvas');
+      sharedCtx = sharedCanvas.getContext('2d', { willReadFrequently: true });
+    }
+    sharedCanvas.width = imgWidth;
+    sharedCanvas.height = imgHeight;
     
-    if (!ctx) {
+    if (!sharedCtx) {
       throw new Error("Failed to get 2d context from canvas");
     }
 
-    ctx.drawImage(imageSource, 0, 0);
+    sharedCtx.drawImage(imageSource, 0, 0);
 
     // Promise.all でバウンディングボックス候補を同時にワーカーマネージャーへ投入
     const verificationPromises = candidateDetectionsBuffer.map(async (detection, index) => {
@@ -91,17 +104,22 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
       const rect: BoundingBoxRect = { originX: sx, originY: sy, width: sw, height: sh };
 
       // createImageBitmap でバウンディングボックスの範囲を指定して切り出し
-      const imageBitmap = await createImageBitmap(canvas, sx, sy, sw, sh);
+      const imageBitmap = await createImageBitmap(sharedCanvas!, sx, sy, sw, sh);
 
-      const res = await workerPoolManager.processCandidate(
-        imageBitmap,
-        rect,
-        index,
-        imgWidth,
-        imgHeight
-      );
-
-      return { isPerson: res.isPerson, index };
+      try {
+        const res = await workerPoolManager.processCandidate(
+          imageBitmap,
+          rect,
+          index,
+          imgWidth,
+          imgHeight
+        );
+        return { isPerson: res.isPerson, index };
+      } catch (err) {
+        // 例外時のフォールバッククローズ
+        imageBitmap.close();
+        return { isPerson: false, index };
+      }
     });
 
     const results = await Promise.all(verificationPromises);
@@ -112,14 +130,23 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
       }
     }
 
-    // 返却用配列のコピー作成と各種バッファの解放
+    // 返却用配列のコピー作成
     const finalResult = [...filteredDetectionsBuffer];
 
-    // 明示的解放
+    // 明示的な参照の解放
+    for (let i = 0; i < candidateDetectionsBuffer.length; i++) {
+      (candidateDetectionsBuffer as any)[i] = null;
+    }
     candidateDetectionsBuffer.length = 0;
+
+    for (let i = 0; i < filteredDetectionsBuffer.length; i++) {
+      (filteredDetectionsBuffer as any)[i] = null;
+    }
     filteredDetectionsBuffer.length = 0;
-    canvas.width = 0;
-    canvas.height = 0;
+
+    // Canvas の解像度を下げて内部メモリをクリア
+    sharedCanvas.width = 0;
+    sharedCanvas.height = 0;
 
     return finalResult;
   } catch (error) {

@@ -25,7 +25,6 @@ export class WorkerPoolManager {
   async #ensureInitialized(width: number, height: number): Promise<void> {
     if (!this.#isInitialized) {
       for (let i = 0; i < this.#poolSize; i++) {
-        // Vite / Webpack 5 互換の Worker 生成
         const worker = new Worker(new URL('./poseWorker.ts', import.meta.url), {
           type: 'module'
         });
@@ -69,11 +68,14 @@ export class WorkerPoolManager {
 
     this.#activeTasks.set(task.id, task);
 
+    const cleanupListeners = () => {
+      worker.removeEventListener('message', onMessage);
+      worker.removeEventListener('error', onError);
+    };
+
     const onMessage = (event: MessageEvent<WorkerResultMessage>) => {
       if (event.data.id === task.id) {
-        worker.removeEventListener('message', onMessage);
-        worker.removeEventListener('error', onError);
-
+        cleanupListeners();
         this.#activeTasks.delete(task.id);
         this.#idleWorkers.push(worker);
 
@@ -83,9 +85,7 @@ export class WorkerPoolManager {
     };
 
     const onError = (error: ErrorEvent) => {
-      worker.removeEventListener('message', onMessage);
-      worker.removeEventListener('error', onError);
-
+      cleanupListeners();
       this.#activeTasks.delete(task.id);
       this.#idleWorkers.push(worker);
 
@@ -103,15 +103,29 @@ export class WorkerPoolManager {
       rect: task.rect
     };
 
-    // 所有権移転（Transferable）で無駄を削減
-    worker.postMessage(message, [task.imageBitmap]);
+    try {
+      // 所有権移転（Transferable）で無駄を削減
+      worker.postMessage(message, [task.imageBitmap]);
+    } catch (postErr) {
+      cleanupListeners();
+      this.#activeTasks.delete(task.id);
+      this.#idleWorkers.push(worker);
+      // 送信失敗時は自前で確実に閉じる
+      task.imageBitmap.close();
+      task.reject(postErr);
+      this.#dispatch();
+    }
   }
 
   public destroy(): void {
+    for (let i = 0; i < this.#taskQueue.length; i++) {
+      this.#taskQueue[i].imageBitmap.close();
+    }
+    this.#taskQueue = [];
+
     this.#workers.forEach(w => w.terminate());
     this.#workers = [];
     this.#idleWorkers = [];
-    this.#taskQueue = [];
     this.#activeTasks.clear();
     this.#isInitialized = false;
   }
