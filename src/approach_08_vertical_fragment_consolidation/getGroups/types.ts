@@ -39,6 +39,7 @@ interface WorkerResultMessage {
   id: number;
   isPerson: boolean;
   rect: BoundingBoxRect;
+  refinedRect?: BoundingBoxRect;
   error?: string;
 }
 
