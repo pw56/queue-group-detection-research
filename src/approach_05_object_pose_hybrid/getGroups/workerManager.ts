@@ -15,8 +15,6 @@ export class WorkerPoolManager {
   #taskQueue: Task[] = [];
   #activeTasks: Map<number, Task> = new Map();
   #isInitialized = false;
-  #currentWidth = 0;
-  #currentHeight = 0;
 
   constructor(poolSize = 4) {
     this.#poolSize = poolSize;
@@ -32,11 +30,7 @@ export class WorkerPoolManager {
         this.#idleWorkers.push(worker);
       }
       this.#isInitialized = true;
-    }
 
-    if (this.#currentWidth !== width || this.#currentHeight !== height) {
-      this.#currentWidth = width;
-      this.#currentHeight = height;
       const initMsg: WorkerIncomingMessage = { type: 'INIT', width, height };
       this.#workers.forEach(worker => worker.postMessage(initMsg));
     }

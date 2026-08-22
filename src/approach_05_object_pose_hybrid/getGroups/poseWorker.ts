@@ -14,10 +14,6 @@ async function initWorker(width: number, height: number) {
     // 元画像サイズで固定キャンバスを1つだけ生成
     offscreenCanvas = new OffscreenCanvas(width, height);
     offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
-  } else if (offscreenCanvas.width !== width || offscreenCanvas.height !== height) {
-    // 元画像サイズが変わった場合のみサイズを再設定
-    offscreenCanvas.width = width;
-    offscreenCanvas.height = height;
   }
 
   if (!detector) {

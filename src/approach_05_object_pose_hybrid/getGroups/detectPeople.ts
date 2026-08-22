@@ -73,18 +73,23 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
     const imgWidth = imageSource.naturalWidth || imageSource.width;
     const imgHeight = imageSource.naturalHeight || imageSource.height;
 
-    // 非表示キャンバスの再利用
+    // 非表示キャンバスの生成および「入力画像サイズが変わった時のみ」キャンバスサイズを変更
     if (!sharedCanvas) {
       sharedCanvas = document.createElement('canvas');
+      sharedCanvas.width = imgWidth;
+      sharedCanvas.height = imgHeight;
       sharedCtx = sharedCanvas.getContext('2d', { willReadFrequently: true });
+    } else if (sharedCanvas.width !== imgWidth || sharedCanvas.height !== imgHeight) {
+      // サイズ変化時のみ width / height を更新（同サイズならここは実行されず保持される）
+      sharedCanvas.width = imgWidth;
+      sharedCanvas.height = imgHeight;
     }
-    sharedCanvas.width = imgWidth;
-    sharedCanvas.height = imgHeight;
     
     if (!sharedCtx) {
       throw new Error("Failed to get 2d context from canvas");
     }
 
+    sharedCtx.clearRect(0, 0, sharedCanvas.width, sharedCanvas.height);
     sharedCtx.drawImage(imageSource, 0, 0);
 
     // Promise.all でバウンディングボックス候補を同時にワーカーマネージャーへ投入
@@ -94,8 +99,8 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
       // 画像範囲内にクランプ（マージンなし）
       const sx = Math.max(0, Math.floor(bbox.originX));
       const sy = Math.max(0, Math.floor(bbox.originY));
-      const sw = Math.min(imgWidth - sx, Math.floor(bbox.width));
-      const sh = Math.min(imgHeight - sy, Math.floor(bbox.height));
+      const sw = Math.min(sharedCanvas!.width - sx, Math.floor(bbox.width));
+      const sh = Math.min(sharedCanvas!.height - sy, Math.floor(bbox.height));
 
       if (sw <= 0 || sh <= 0) {
         return { isPerson: false, index };
@@ -106,9 +111,12 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
       // createImageBitmap でバウンディングボックスの範囲を指定して切り出し
       const imageBitmap = await createImageBitmap(sharedCanvas!, sx, sy, sw, sh);
 
+      const clonedBitmap = structuredClone(imageBitmap, { transfer: [imageBitmap] });
+      imageBitmap.close();
+
       try {
         const res = await workerPoolManager.processCandidate(
-          imageBitmap,
+          clonedBitmap,
           rect,
           index,
           imgWidth,
@@ -116,7 +124,7 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
         );
         return { isPerson: res.isPerson, index };
       } catch (err) {
-        imageBitmap.close();
+        clonedBitmap.close();
         return { isPerson: false, index };
       }
     });
@@ -142,10 +150,6 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
       (filteredDetectionsBuffer as any)[i] = null;
     }
     filteredDetectionsBuffer.length = 0;
-
-    // Canvas の解像度を下げて内部メモリをクリア
-    sharedCanvas.width = 0;
-    sharedCanvas.height = 0;
 
     return finalResult;
   } catch (error) {
