@@ -21,4 +21,4 @@ export async function getGroups(imageSource: GroupDetectionImageSource): Promise
   }
 }
 
-export * from './types';
+export type { Group, Groups, GroupDetectionImageSource, Detection, BoundingBox } from './types';

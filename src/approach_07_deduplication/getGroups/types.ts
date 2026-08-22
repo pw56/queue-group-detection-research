@@ -7,9 +7,11 @@ type Groups = Group[];
 type GroupDetectionImageSource = HTMLImageElement;
 
 export type { Group, Groups, GroupDetectionImageSource };
-export { type Detection, type BoundingBox } from '@mediapipe/tasks-vision';
+export type { Detection, BoundingBox } from '@mediapipe/tasks-vision';
 
-// 追加の内部型定義
+// グループ検出内部で使用される型定義
+
+// バウンディングボックス
 export interface BoundingBoxRect {
   originX: number;
   originY: number;
@@ -17,24 +19,27 @@ export interface BoundingBoxRect {
   height: number;
 }
 
-export interface WorkerInitMessage {
+// ワーカー向け
+interface WorkerInitMessage {
   type: 'INIT';
   width: number;
   height: number;
 }
 
-export interface WorkerProcessMessage {
+interface WorkerProcessMessage {
   type: 'PROCESS';
   id: number;
   imageBitmap: ImageBitmap;
   rect: BoundingBoxRect;
 }
 
-export type WorkerIncomingMessage = WorkerInitMessage | WorkerProcessMessage;
+type WorkerIncomingMessage = WorkerInitMessage | WorkerProcessMessage;
 
-export interface WorkerResultMessage {
+interface WorkerResultMessage {
   id: number;
   isPerson: boolean;
   rect: BoundingBoxRect;
   error?: string;
 }
+
+export type { WorkerInitMessage, WorkerIncomingMessage, WorkerResultMessage };
