@@ -11,11 +11,11 @@ let currentPoses: Pose[] = [];
 
 async function initWorker(width: number, height: number) {
   if (!offscreenCanvas) {
-    // 初回のみ1つだけOffscreenCanvasインスタンスを生成
+    // 元画像サイズで固定キャンバスを1つだけ生成
     offscreenCanvas = new OffscreenCanvas(width, height);
     offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
-  } else {
-    // 2回目以降は再生成せずサイズ指定の変更のみで使い回す
+  } else if (offscreenCanvas.width !== width || offscreenCanvas.height !== height) {
+    // 元画像サイズが変わった場合のみサイズを再設定
     offscreenCanvas.width = width;
     offscreenCanvas.height = height;
   }
@@ -53,14 +53,16 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
         throw new Error('Worker is not initialized');
       }
 
-      // 既存キャンバスのリサイズと描画
-      offscreenCanvas.width = imageBitmap.width;
-      offscreenCanvas.height = imageBitmap.height;
+      // キャンバスサイズの変更（リサイズ）を行わず、固定キャンバスに切り出しBitmapをそのまま描画
       offscreenCtx.clearRect(0, 0, imageBitmap.width, imageBitmap.height);
       offscreenCtx.drawImage(imageBitmap, 0, 0);
 
       // ポーズ検出実行（スコープ外バッファの参照を再利用）
+      for (let i = 0; i < currentPoses.length; i++) {
+        (currentPoses as any)[i] = null;
+      }
       currentPoses.length = 0;
+
       const poses = await detector.estimatePoses(offscreenCanvas);
       for (let i = 0; i < poses.length; i++) {
         currentPoses.push(poses[i]);
@@ -76,10 +78,10 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
     } catch (error: any) {
       errorMessage = error?.message || 'Unknown worker error';
     } finally {
-      // どのような経路を通っても ImageBitmap は確実にクローズ解放する
+      // 転送された ImageBitmap を確実にクローズ解放
       imageBitmap.close();
 
-      // バッファ配列の要素参照を解除してメモリ解放を補助
+      // バッファ配列の要素参照を切ってメモリ解放
       for (let i = 0; i < currentPoses.length; i++) {
         (currentPoses as any)[i] = null;
       }

@@ -4,7 +4,7 @@ import { workerPoolManager } from './workerManager';
 
 let objectDetector: ObjectDetector | null = null;
 
-// OOM防止: 非表示キャンバスを1つ生成し使い回す
+// OOM防止: メインスレッドで canvas を1つ使い回す
 let sharedCanvas: HTMLCanvasElement | null = null;
 let sharedCtx: CanvasRenderingContext2D | null = null;
 
@@ -116,7 +116,6 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
         );
         return { isPerson: res.isPerson, index };
       } catch (err) {
-        // 例外時のフォールバッククローズ
         imageBitmap.close();
         return { isPerson: false, index };
       }

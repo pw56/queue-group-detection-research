@@ -104,13 +104,12 @@ export class WorkerPoolManager {
     };
 
     try {
-      // 所有権移転（Transferable）で無駄を削減
+      // 所有権移転（Transferable）でデータ無駄転送を削減
       worker.postMessage(message, [task.imageBitmap]);
     } catch (postErr) {
       cleanupListeners();
       this.#activeTasks.delete(task.id);
       this.#idleWorkers.push(worker);
-      // 送信失敗時は自前で確実に閉じる
       task.imageBitmap.close();
       task.reject(postErr);
       this.#dispatch();
