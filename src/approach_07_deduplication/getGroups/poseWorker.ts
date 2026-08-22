@@ -1,6 +1,6 @@
 import * as tf from '@tensorflow/tfjs';
 import { createDetector, SupportedModels, Pose } from '@tensorflow-models/pose-detection/dist';
-import { WorkerIncomingMessage, WorkerResultMessage } from './types';
+import { WorkerIncomingMessage, WorkerResultMessage, BoundingBoxRect } from './types';
 
 let detector: any = null;
 
@@ -41,6 +41,7 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
     let isPerson = false;
     let errorMessage: string | undefined = undefined;
     let inputBitmapToEstimate: ImageBitmap | null = null;
+    let refinedRect: BoundingBoxRect | undefined = undefined;
 
     // 推論時に生成されるTensorを管理・解放するためのTensorFlowスコープの準備
     tf.engine().startScope();
@@ -113,6 +114,45 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
         return pose.keypoints.some(kp => (kp.score ?? 0) >= 0.25);
       });
 
+      // 骨格が検出されている場合、有効なキーポイントからマージンを設けたROIを再構築する
+      if (isPerson && currentPoses.length > 0) {
+        const validKeypoints = currentPoses[0].keypoints.filter(kp => (kp.score ?? 0) >= 0.25);
+
+        if (validKeypoints.length > 0) {
+          let minX = Infinity;
+          let minY = Infinity;
+          let maxX = -Infinity;
+          let maxY = -Infinity;
+
+          for (const kp of validKeypoints) {
+            if (kp.x < minX) minX = kp.x;
+            if (kp.x > maxX) maxX = kp.x;
+            if (kp.y < minY) minY = kp.y;
+            if (kp.y > maxY) maxY = kp.y;
+          }
+
+          const localWidth = maxX - minX;
+          const localHeight = maxY - minY;
+
+          // 骨格サイズに対するマージン率 (20%)
+          const marginX = Math.max(localWidth * 0.2, 10);
+          const marginY = Math.max(localHeight * 0.2, 10);
+
+          // 大元の画像における絶対座標へ変換
+          const absMinX = Math.max(0, rect.originX + minX - marginX);
+          const absMinY = Math.max(0, rect.originY + minY - marginY);
+          const absMaxX = rect.originX + maxX + marginX;
+          const absMaxY = rect.originY + maxY + marginY;
+
+          refinedRect = {
+            originX: Math.floor(absMinX),
+            originY: Math.floor(absMinY),
+            width: Math.ceil(absMaxX - absMinX),
+            height: Math.ceil(absMaxY - absMinY)
+          };
+        }
+      }
+
     } catch (error: any) {
       errorMessage = error?.message || 'Unknown worker error';
     } finally {
@@ -138,6 +178,7 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
       id,
       isPerson,
       rect,
+      refinedRect,
       ...(errorMessage ? { error: errorMessage } : {})
     };
     self.postMessage(result);
