@@ -65,25 +65,20 @@ function calculateHorizontalOverlapRatio(boxA: BoundingBoxRect, boxB: BoundingBo
   return Math.max(iouX, overlapRatio);
 }
 
-// 2つの Detection オブジェクトのバウンディングボックスを統合した親バウンディングボックスを作成する関数
-function createMergedDetection(detA: Detection, detB: Detection): Detection {
-  const boxA = detA.boundingBox!;
-  const boxB = detB.boundingBox!;
+// 2つの Detection オブジェクトのバウンディングボックスを統合し、オブジェクト再生成を抑える関数
+function mergeDetectionInPlace(target: Detection, source: Detection): void {
+  const boxA = target.boundingBox!;
+  const boxB = source.boundingBox!;
 
   const originX = Math.min(boxA.originX, boxB.originX);
   const originY = Math.min(boxA.originY, boxB.originY);
   const maxX = Math.max(boxA.originX + boxA.width, boxB.originX + boxB.width);
   const maxY = Math.max(boxA.originY + boxA.height, boxB.originY + boxB.height);
 
-  return {
-    categories: detA.categories,
-    boundingBox: {
-      originX,
-      originY,
-      width: maxX - originX,
-      height: maxY - originY
-    }
-  };
+  boxA.originX = originX;
+  boxA.originY = originY;
+  boxA.width = maxX - originX;
+  boxA.height = maxY - originY;
 }
 
 // Detectorの初期化
@@ -292,8 +287,8 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
         const hOverlap = calculateHorizontalOverlapRatio(current.boundingBox, existing.boundingBox);
 
         if (hOverlap >= HORIZONTAL_OVERLAP_THRESHOLD) {
-          // X軸の重なりが基準を超えている場合、領域を統合して親バウンディングボックスを作成
-          finalDetectionsBuffer[j] = createMergedDetection(existing, current);
+          // X軸の重なりが基準を超えている場合、既存オブジェクトに領域を上書き統合
+          mergeDetectionInPlace(existing, current);
           isMerged = true;
           break;
         }
@@ -304,7 +299,7 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
       }
     }
 
-    const finalResult = [...finalDetectionsBuffer];
+    const finalResult = finalDetectionsBuffer.slice();
 
     // 明示的な参照の解放
     for (let i = 0; i < candidateDetectionsBuffer.length; i++) {
