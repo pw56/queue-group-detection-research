@@ -201,8 +201,12 @@ export async function detectPeople(
         );
         return { isPerson: res.isPerson, index, refinedRect: res.refinedRect };
       } catch (err) {
-        imageBitmap.close();
         return { isPerson: false, index, refinedRect: undefined };
+      } finally {
+        // 成功・失敗に関わらず ImageBitmap を必ず解放して VRAM/GPU メモリ解放を保証
+        if (imageBitmap) {
+          imageBitmap.close();
+        }
       }
     });
 
