@@ -1,6 +1,10 @@
-import { Groups, GroupDetectionImageSource } from './types';
+import { Groups, GroupDetectionImageSource, Detection } from './types';
 import { detectPeople } from './detectPeople';
 import { convertToGroups } from './convertToGroups';
+
+// スコープ外で一度だけ配列を生成
+// OOM対策
+const reusableDetections: Detection[] = [];
 
 // グループの検出 (人物をグループに見せかけてそのまま返す)
 export async function getGroups(imageSource: GroupDetectionImageSource): Promise<Groups> {
@@ -8,7 +12,7 @@ export async function getGroups(imageSource: GroupDetectionImageSource): Promise
   if (!imageSource) throw new Error("No input data exists");
 
   try {
-    const detections = await detectPeople(imageSource);
+    const detections = await detectPeople(imageSource, reusableDetections);
     const people = detections.map(detection => {
       // boundingBoxから angle を取り出し、残りを rest（新しいオブジェクト）に格納
       const { angle, ...rest } = detection.boundingBox!;

@@ -99,7 +99,10 @@ async function initializeDetector(): Promise<void> {
 }
 
 // 人物の検出
-export async function detectPeople(imageSource: GroupDetectionImageSource): Promise<Detection[]> {
+export async function detectPeople(
+  imageSource: GroupDetectionImageSource,
+  outResult: Detection[] = []
+): Promise<Detection[]> {
 
   if (!objectDetector)
     await initializeDetector();
@@ -146,7 +149,8 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
     }
 
     if (candidateDetectionsBuffer.length === 0) {
-      return [];
+      outResult.length = 0;
+      return outResult;
     }
 
     const imgWidth = imageSource.naturalWidth || imageSource.width;
@@ -272,7 +276,7 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
     sortedDetectionsBuffer.sort((a, b) => a.boundingBox!.originX - b.boundingBox!.originX);
 
     // 2. 横方向（X軸）の重なりが閾値（50%以上）を満たしている場合に結合する
-    const HORIZONTAL_OVERLAP_THRESHOLD = 0.50;
+    const HORIZONTAL_OVERLAP_THRESHOLD = 0.5;
 
     for (let i = 0; i < sortedDetectionsBuffer.length; i++) {
       let current = sortedDetectionsBuffer[i];
@@ -299,7 +303,10 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
       }
     }
 
-    const finalResult = finalDetectionsBuffer.slice();
+    outResult.length = 0;
+    for (let i = 0; i < finalDetectionsBuffer.length; i++) {
+      outResult.push(finalDetectionsBuffer[i]);
+    }
 
     // 明示的な参照の解放
     for (let i = 0; i < candidateDetectionsBuffer.length; i++) {
@@ -327,7 +334,7 @@ export async function detectPeople(imageSource: GroupDetectionImageSource): Prom
     }
     finalDetectionsBuffer.length = 0;
 
-    return finalResult;
+    return outResult;
   } catch (error) {
     throw new Error("Detection error", { cause: error });
   }
