@@ -53,13 +53,18 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
       }
       currentPoses.length = 0;
 
+      const origWidth = imageBitmap.width;
+      const origHeight = imageBitmap.height;
+      let isResized = false;
+
       // 切り取ったのがモデルの入力用として小さすぎる場合は拡大
-      if (imageBitmap.width < MIN_INPUT_SIZE || imageBitmap.height < MIN_INPUT_SIZE) {
+      if (origWidth < MIN_INPUT_SIZE || origHeight < MIN_INPUT_SIZE) {
         if (workerCtx) {
           workerCtx.clearRect(0, 0, MIN_INPUT_SIZE, MIN_INPUT_SIZE);
           workerCtx.drawImage(imageBitmap, 0, 0, MIN_INPUT_SIZE, MIN_INPUT_SIZE);
           // ビットマップで指定範囲で切り出して、通常時と同じようにモデルに渡す
           inputBitmapToEstimate = await createImageBitmap(workerCanvas, 0, 0, MIN_INPUT_SIZE, MIN_INPUT_SIZE);
+          isResized = true;
         } else {
           inputBitmapToEstimate = imageBitmap;
         }
@@ -71,6 +76,31 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
       const poses = await detector.estimatePoses(inputBitmapToEstimate);
       for (let i = 0; i < poses.length; i++) {
         currentPoses.push(poses[i]);
+      }
+
+      // 拡大した場合はスケール比率を計算し、検出結果（キーポイント・バウンディングボックス）の座標を元の数値に逆変換する
+      if (isResized) {
+        const scaleX = origWidth / MIN_INPUT_SIZE;
+        const scaleY = origHeight / MIN_INPUT_SIZE;
+
+        for (let i = 0; i < currentPoses.length; i++) {
+          const pose = currentPoses[i];
+          if (pose.keypoints) {
+            for (let j = 0; j < pose.keypoints.length; j++) {
+              const kp = pose.keypoints[j];
+              kp.x = kp.x * scaleX;
+              kp.y = kp.y * scaleY;
+            }
+          }
+          if (pose.box) {
+            pose.box.xMin = pose.box.xMin * scaleX;
+            pose.box.yMin = pose.box.yMin * scaleY;
+            pose.box.xMax = pose.box.xMax * scaleX;
+            pose.box.yMax = pose.box.yMax * scaleY;
+            pose.box.width = pose.box.width * scaleX;
+            pose.box.height = pose.box.height * scaleY;
+          }
+        }
       }
 
       // 実用に耐えうる信頼度でフィルター (スコア 0.25 以上のキーポイントが存在するか)
