@@ -7,12 +7,12 @@ let detector: any = null;
 // OOM防止のためスコープ外で宣言・使い回すバッファ変数
 let currentPoses: Pose[] = [];
 
-// 小さい画像の拡大用固定キャンバス（ワーカーごとに1つ保持して使い回す）
+// 小さすぎるビットマップの拡大用固定キャンバス（ワーカーごとに1つ保持して使い回す）
 const MIN_INPUT_SIZE = 256;
-let workerCanvas: OffscreenCanvas | null = null;
-let workerCtx: OffscreenCanvasRenderingContext2D | null = null;
+const workerCanvas = new OffscreenCanvas(MIN_INPUT_SIZE, MIN_INPUT_SIZE);
+const workerCtx = workerCanvas.getContext('2d', { willReadFrequently: true });
 
-async function initWorker(_width: number, _height: number) {
+async function initWorker(width: number, height: number) {
   if (!detector) {
     await tf.ready();
     detector = await createDetector(
@@ -30,7 +30,7 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
   if (data.type === 'INIT') {
     try {
       await initWorker(data.width, data.height);
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error('Worker init error:', err);
     }
     return;
@@ -40,6 +40,7 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
     const { id, imageBitmap, rect } = data;
     let isPerson = false;
     let errorMessage: string | undefined = undefined;
+    let inputBitmapToEstimate: ImageBitmap | null = null;
 
     try {
       if (!detector) {
@@ -52,25 +53,22 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
       }
       currentPoses.length = 0;
 
-      // 入力画像のサイズ調整（小さすぎる場合は固定サイズのOffscreenCanvasで拡大）
-      let inputSource: ImageBitmap | OffscreenCanvas = imageBitmap;
-
+      // 切り取ったのがモデルの入力用として小さすぎる場合は拡大
       if (imageBitmap.width < MIN_INPUT_SIZE || imageBitmap.height < MIN_INPUT_SIZE) {
-        // 固定キャンバスの初期化またはサイズ調整
-        if (!workerCanvas) {
-          workerCanvas = new OffscreenCanvas(MIN_INPUT_SIZE, MIN_INPUT_SIZE);
-          workerCtx = workerCanvas.getContext('2d', { willReadFrequently: true });
-        }
-
         if (workerCtx) {
           workerCtx.clearRect(0, 0, MIN_INPUT_SIZE, MIN_INPUT_SIZE);
-          // アスペクト比を維持しつつスケーリングして中央配置する、または全体に引き伸ばして描画
           workerCtx.drawImage(imageBitmap, 0, 0, MIN_INPUT_SIZE, MIN_INPUT_SIZE);
-          inputSource = workerCanvas;
+          // ビットマップで指定範囲で切り出して、通常時と同じようにモデルに渡す
+          inputBitmapToEstimate = await createImageBitmap(workerCanvas, 0, 0, MIN_INPUT_SIZE, MIN_INPUT_SIZE);
+        } else {
+          inputBitmapToEstimate = imageBitmap;
         }
+      } else {
+        inputBitmapToEstimate = imageBitmap;
       }
 
-      const poses = await detector.estimatePoses(inputSource);
+      // キャンバスを介さず、マネージャーから渡された imageBitmap を直接推論に渡す
+      const poses = await detector.estimatePoses(inputBitmapToEstimate);
       for (let i = 0; i < poses.length; i++) {
         currentPoses.push(poses[i]);
       }
@@ -82,9 +80,14 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
         return pose.keypoints.some(kp => (kp.score ?? 0) >= 0.25);
       });
 
-    } catch (error: unknown) {
-      errorMessage = error instanceof Error ? error.message : 'Unknown worker error';
+    } catch (error: any) {
+      errorMessage = error?.message || 'Unknown worker error';
     } finally {
+      // 生成した一時ビットマップがあればクローズ解放
+      if (inputBitmapToEstimate && inputBitmapToEstimate !== imageBitmap) {
+        inputBitmapToEstimate.close();
+      }
+
       // 転送された ImageBitmap を確実にクローズ解放
       imageBitmap.close();
 
