@@ -1,13 +1,13 @@
 import * as tf from '@tensorflow/tfjs';
-import * as poseDetection from '@tensorflow-models/pose-detection';
+import { createDetector, SupportedModels, Pose } from '@tensorflow-models/pose-detection/dist/index';
 import { WorkerIncomingMessage, WorkerResultMessage } from './types';
 
-let detector: poseDetection.PoseDetector | null = null;
+let detector: any = null;
 let offscreenCanvas: OffscreenCanvas | null = null;
 let offscreenCtx: OffscreenCanvasRenderingContext2D | null = null;
 
 // OOM防止のためにスコープ外で宣言・使い回すバッファ変数
-let currentPoses: poseDetection.Pose[] = [];
+let currentPoses: Pose[] = [];
 
 async function initWorker(width: number, height: number) {
   if (!offscreenCanvas) {
@@ -20,10 +20,10 @@ async function initWorker(width: number, height: number) {
 
   if (!detector) {
     await tf.ready();
-    detector = await poseDetection.createDetector(
-      poseDetection.SupportedModels.MoveNet,
+    detector = await createDetector(
+      SupportedModels.MoveNet,
       {
-        modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING
+        modelType: 'SinglePose.Lightning'
       }
     );
   }
