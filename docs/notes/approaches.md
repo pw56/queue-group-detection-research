@@ -49,7 +49,7 @@
     - 呼ばれたフレーム数をファイルのトップレベルで保持して、さらに変数使い回し
   2. WebGPUを使用(利用できる場合は)
   3. WebGL環境を最適化
-    1. `tf.env().set('WEBGL_RENDER_FLOAT32_CAPABLE', false)`と`tf.env().set('WEBGL_FORCE_F16_TEXTURES', true)`で16ビット推論を強制
+    1. `tf.env().set('WEBGL_RENDER_FLOAT32_CAPABLE', false)`と`tf.env().set('WEBGL_FORCE_F16_TEXTURES', true)`、それぞれ対応しているかの判定で16ビット推論を使用
     2. 毎回入力される画像は内容もサイズも異なるので、`tf.env().set('WEBGL_DELETE_TEXTURE_THRESHOLD', 0)`で無駄なキャッシュの蓄積をブロック
   4. 個々の施策をまとめて実装
     1. WebGPU(1と2)
