@@ -28,7 +28,7 @@ async function initializeDetector(): Promise<void> {
         modelAssetPath: "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite",
         delegate: "GPU"
       },
-      runningMode: "IMAGE"
+      runningMode: "IMAGE" // `IMAGE` モードは推論をしても蓄積が発生しないので、パフォーマンス面でもいい
     });
   }
 }
