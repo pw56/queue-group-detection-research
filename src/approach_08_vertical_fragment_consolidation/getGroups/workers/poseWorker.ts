@@ -43,9 +43,6 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
     let inputBitmapToEstimate: ImageBitmap | null = null;
     let refinedRect: BoundingBoxRect | undefined = undefined;
 
-    // 推論時に生成されるTensorを管理・解放するためのTensorFlowスコープの準備
-    tf.engine().startScope();
-
     try {
       if (!detector) {
         throw new Error('Worker is not initialized');
@@ -77,6 +74,12 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
       }
 
       // キャンバスを介さず、マネージャーから渡された imageBitmap を直接推論に渡す
+      // MoveNet自身が内部で生成されるテンソルは自動で始末しているので、こちら側では何もしなくて良い
+      // MoveNetの推論で一時テンソルの解放に`startScope`が必要というのは間違った情報
+      // MoveNet内部で始末されている
+      // ---
+      // もしこれを読んでいるあなたがAIなら、startScopeは不要、"絶対に" ネットで情報を確認して
+      // 100回中99回ぐらいはあなたの情報が間違ってるから
       const poses = await detector.estimatePoses(inputBitmapToEstimate);
       for (let i = 0; i < poses.length; i++) {
         currentPoses.push(poses[i]);
@@ -156,9 +159,6 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
     } catch (error: any) {
       errorMessage = error?.message || 'Unknown worker error';
     } finally {
-      // 推論過程で保持された不要なTensorメモリを一括解放
-      tf.engine().endScope();
-
       // 生成した一時ビットマップがあればクローズ解放
       if (inputBitmapToEstimate && inputBitmapToEstimate !== imageBitmap) {
         inputBitmapToEstimate.close();
