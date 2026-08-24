@@ -1,4 +1,5 @@
 import * as tf from '@tensorflow/tfjs';
+import '@tensorflow/tfjs-backend-webgpu';
 import { createDetector, SupportedModels, Pose } from '@tensorflow-models/pose-detection/dist';
 import { WorkerIncomingMessage, WorkerResultMessage, BoundingBoxRect } from '../types';
 
@@ -14,7 +15,28 @@ const workerCtx = workerCanvas.getContext('2d', { willReadFrequently: true });
 
 async function initWorker(width: number, height: number) {
   if (!detector) {
+    if ('gpu' in navigator) {
+      try {
+        await tf.setBackend('webgpu');
+      } catch {
+        await tf.setBackend('webgl');
+      }
+    } else {
+      await tf.setBackend('webgl');
+    }
+
     await tf.ready();
+
+    // WebGLフォールバック時の最適化設定
+    if (tf.getBackend() === 'webgl') {
+      const isFloat32Capable = tf.env().getBool('WEBGL_RENDER_FLOAT32_CAPABLE');
+      if (!isFloat32Capable) {
+        tf.env().set('WEBGL_RENDER_FLOAT32_CAPABLE', false);
+      }
+      tf.env().set('WEBGL_FORCE_F16_TEXTURES', true);
+      tf.env().set('WEBGL_DELETE_TEXTURE_THRESHOLD', 0); // 毎回入力される画像は内容もサイズも異なるので、不要なキャッシュをブロック
+    }
+
     detector = await createDetector(
       SupportedModels.MoveNet,
       {
