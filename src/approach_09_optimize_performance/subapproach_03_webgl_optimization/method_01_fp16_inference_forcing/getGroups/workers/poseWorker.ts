@@ -15,6 +15,16 @@ const workerCtx = workerCanvas.getContext('2d', { willReadFrequently: true });
 async function initWorker(width: number, height: number) {
   if (!detector) {
     await tf.ready();
+
+    // 16ビット（半精度）浮動小数点処理の環境対応判定と設定
+    if (tf.getBackend() === 'webgl') {
+      const isFloat32Capable = tf.env().getBool('WEBGL_RENDER_FLOAT32_CAPABLE');
+      if (!isFloat32Capable) {
+        tf.env().set('WEBGL_RENDER_FLOAT32_CAPABLE', false);
+      }
+      tf.env().set('WEBGL_FORCE_F16_TEXTURES', true);
+    }
+
     detector = await createDetector(
       SupportedModels.MoveNet,
       {
