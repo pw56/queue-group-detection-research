@@ -2,7 +2,7 @@ import { ObjectDetector, FilesetResolver, Detection, Category } from '@mediapipe
 import { GroupDetectionImageSource, BoundingBoxRect } from '../types';
 import { workerPoolManager } from '../workers';
 import { deduplicateDetections } from './deduplicateDetections';
-import { RefreshEvaluator } from '../refreshLogic';
+import { RefreshEvaluator } from './refreshMediapipe';
 
 let objectDetector: ObjectDetector | null = null;
 
