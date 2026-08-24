@@ -51,7 +51,9 @@
   3. WebGL環境を最適化
     1. `tf.env().set('WEBGL_RENDER_FLOAT32_CAPABLE', false)`と`tf.env().set('WEBGL_FORCE_F16_TEXTURES', true)`で16ビット推論を強制
     2. 毎回入力される画像は内容もサイズも異なるので、`tf.env().set('WEBGL_DELETE_TEXTURE_THRESHOLD', 0)`で無駄なキャッシュの蓄積をブロック
-  4. 個々の施策をまとめて実装(1と2, 1と3)
+  4. 個々の施策をまとめて実装
+    1. WebGPU(1と2)
+    2. 最適化済みWebGL(1と3)
 10. 人物から向き取得 & 距離でグループ判定
   - 人物から向き取得
     - 乱立対策で人物のバウンディングボックスが最終決定するので、その後に行う
