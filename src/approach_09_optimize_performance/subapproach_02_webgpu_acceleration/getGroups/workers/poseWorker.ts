@@ -1,4 +1,5 @@
 import * as tf from '@tensorflow/tfjs';
+import '@tensorflow/tfjs-backend-webgpu';
 import { createDetector, SupportedModels, Pose } from '@tensorflow-models/pose-detection/dist';
 import { WorkerIncomingMessage, WorkerResultMessage, BoundingBoxRect } from '../types';
 
@@ -14,6 +15,13 @@ const workerCtx = workerCanvas.getContext('2d', { willReadFrequently: true });
 
 async function initWorker(width: number, height: number) {
   if (!detector) {
+    if ('gpu' in navigator) {
+      try {
+        await tf.setBackend('webgpu');
+      } catch {
+        await tf.setBackend('webgl');
+      }
+    }
     await tf.ready();
     detector = await createDetector(
       SupportedModels.MoveNet,
