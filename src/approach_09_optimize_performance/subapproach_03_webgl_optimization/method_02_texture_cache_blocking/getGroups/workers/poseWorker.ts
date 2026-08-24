@@ -15,6 +15,7 @@ const workerCtx = workerCanvas.getContext('2d', { willReadFrequently: true });
 async function initWorker(width: number, height: number) {
   if (!detector) {
     await tf.ready();
+    tf.env().set('WEBGL_DELETE_TEXTURE_THRESHOLD', 0); // 毎回入力される画像は内容もサイズも異なるので、不要なキャッシュをブロック
     detector = await createDetector(
       SupportedModels.MoveNet,
       {

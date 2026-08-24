@@ -1,0 +1,1 @@
+export { WorkerPoolManager, workerPoolManager } from './workerManager';

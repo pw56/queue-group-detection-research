@@ -1,0 +1,17 @@
+name: Build approach_09_optimize_performance / integrated
+
+on:
+  push:
+    paths:
+      - 'src/approach_09_optimize_performance/integrated/**'
+
+# GitHub Pages へのデプロイに必要な権限を設定
+permissions:
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    uses: ./.github/workflows/build-and-deploy.yml
+    with:
+      directory: ./src/approach_09_optimize_performance/integrated
