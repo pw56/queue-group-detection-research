@@ -1,4 +1,4 @@
-import { Groups, Person } from '../types';
+import { Groups, Person, Keypoint2D } from '../types';
 import { QueueLine } from './estimateQueueLine';
 
 interface DistanceGroupingOptions {
@@ -6,6 +6,37 @@ interface DistanceGroupingOptions {
   sideThreshold?: number;
   /** 列の進行（前後）方向における判定閾値（ピクセル） */
   lineThreshold?: number;
+}
+
+const ANKLE_SCORE_THRESHOLD = 0.5;
+
+/**
+ * MoveNetのキーポイント配列から足首の座標を取得する
+ * 左足首: インデックス 15, 右足首: インデックス 16
+ */
+function getAnklePosition(keypoints?: Keypoint2D[], threshold = ANKLE_SCORE_THRESHOLD): { x: number; y: number } | null {
+  if (!keypoints || keypoints.length <= 16) {
+    return null;
+  }
+
+  const leftAnkle = keypoints[15];
+  const rightAnkle = keypoints[16];
+
+  const leftValid = leftAnkle && (leftAnkle.score ?? 0) >= threshold;
+  const rightValid = rightAnkle && (rightAnkle.score ?? 0) >= threshold;
+
+  if (leftValid && rightValid) {
+    return {
+      x: (leftAnkle.x + rightAnkle.x) / 2,
+      y: (leftAnkle.y + rightAnkle.y) / 2
+    };
+  } else if (leftValid) {
+    return { x: leftAnkle.x, y: leftAnkle.y };
+  } else if (rightValid) {
+    return { x: rightAnkle.x, y: rightAnkle.y };
+  }
+
+  return null;
 }
 
 /**
@@ -37,8 +68,21 @@ export function groupByDistance(
   // 各人物を中心座標に変換
   const personData = people.map((person, index) => {
     const box = person.boundingBox;
-    const cx = box ? box.originX + box.width / 2 : 0;
-    const cy = box ? box.originY + box.height / 2 : 0;
+    const anklePos = getAnklePosition(person.keypoints, ANKLE_SCORE_THRESHOLD);
+    
+    let cx: number;
+    let cy: number;
+
+    if (anklePos) {
+      cx = anklePos.x;
+      cy = anklePos.y;
+    } else if (box) {
+      cx = box.originX + box.width / 2;
+      cy = box.originY + box.height;
+    } else {
+      cx = 0;
+      cy = 0;
+    }
 
     // 列の代表点からの相対位置
     const dx = cx - queueLine.origin.x;

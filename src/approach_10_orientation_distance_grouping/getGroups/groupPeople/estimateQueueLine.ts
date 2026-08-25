@@ -1,10 +1,41 @@
-import { Person, DirectionVector } from '../types';
+import { Person, DirectionVector, Keypoint2D } from '../types';
 
 export interface QueueLine {
   /** 列の代表点 (中心など) */
   origin: { x: number; y: number };
   /** 列の方向を示す単位ベクトル (dx, dy) */
   direction: DirectionVector;
+}
+
+const ANKLE_SCORE_THRESHOLD = 0.5;
+
+/**
+ * MoveNetのキーポイント配列から足首の座標を取得する
+ * 左足首: インデックス 15, 右足首: インデックス 16
+ */
+function getAnklePosition(keypoints?: Keypoint2D[], threshold = ANKLE_SCORE_THRESHOLD): { x: number; y: number } | null {
+  if (!keypoints || keypoints.length <= 16) {
+    return null;
+  }
+
+  const leftAnkle = keypoints[15];
+  const rightAnkle = keypoints[16];
+
+  const leftValid = leftAnkle && (leftAnkle.score ?? 0) >= threshold;
+  const rightValid = rightAnkle && (rightAnkle.score ?? 0) >= threshold;
+
+  if (leftValid && rightValid) {
+    return {
+      x: (leftAnkle.x + rightAnkle.x) / 2,
+      y: (leftAnkle.y + rightAnkle.y) / 2
+    };
+  } else if (leftValid) {
+    return { x: leftAnkle.x, y: leftAnkle.y };
+  } else if (rightValid) {
+    return { x: rightAnkle.x, y: rightAnkle.y };
+  }
+
+  return null;
 }
 
 /**
@@ -22,10 +53,9 @@ export function estimateQueueLine(people: Person[]): QueueLine | null {
 
   for (let i = 0; i < people.length; i++) {
     const p = people[i];
-    if (p.boundingBox) {
-      const cx = p.boundingBox.originX + p.boundingBox.width / 2;
-      const cy = p.boundingBox.originY + p.boundingBox.height / 2;
-      centers.push({ x: cx, y: cy });
+    const anklePos = getAnklePosition(p.keypoints, ANKLE_SCORE_THRESHOLD);
+    if (anklePos) {
+      centers.push(anklePos);
     }
     if (p.direction && (p.direction.x !== 0 || p.direction.y !== 0)) {
       directions.push(p.direction);
