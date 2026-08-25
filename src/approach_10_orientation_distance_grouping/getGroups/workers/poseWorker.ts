@@ -1,7 +1,12 @@
 import * as tf from '@tensorflow/tfjs';
 import '@tensorflow/tfjs-backend-webgpu';
 import { createDetector, SupportedModels, Pose } from '@tensorflow-models/pose-detection/dist';
-import { WorkerIncomingMessage, WorkerResultMessage, BoundingBoxRect } from '../types';
+import {
+  WorkerIncomingMessage,
+  WorkerResultMessage,
+  BoundingBoxRect,
+  Keypoint2D
+} from '../types';
 
 let detector: any = null;
 
@@ -46,6 +51,78 @@ async function initWorker(width: number, height: number) {
   }
 }
 
+async function estimatePoseFromBitmap(imageBitmap: ImageBitmap): Promise<{
+  inputBitmapToEstimate: ImageBitmap;
+  isResized: boolean;
+  origWidth: number;
+  origHeight: number;
+}> {
+  // ポーズ検出実行（スコープ外バッファの参照を再利用）
+  for (let i = 0; i < currentPoses.length; i++) {
+    (currentPoses as any)[i] = null;
+  }
+  currentPoses.length = 0;
+
+  const origWidth = imageBitmap.width;
+  const origHeight = imageBitmap.height;
+  let isResized = false;
+  let inputBitmapToEstimate: ImageBitmap | null = null;
+
+  // 切り取ったのがモデルの入力用として小さすぎる場合は拡大
+  if (origWidth < MIN_INPUT_SIZE || origHeight < MIN_INPUT_SIZE) {
+    if (workerCtx) {
+      workerCtx.clearRect(0, 0, MIN_INPUT_SIZE, MIN_INPUT_SIZE);
+      workerCtx.drawImage(imageBitmap, 0, 0, MIN_INPUT_SIZE, MIN_INPUT_SIZE);
+      // ビットマップで指定範囲で切り出して、通常時と同じようにモデルに渡す
+      inputBitmapToEstimate = await createImageBitmap(workerCanvas, 0, 0, MIN_INPUT_SIZE, MIN_INPUT_SIZE);
+      isResized = true;
+    } else {
+      inputBitmapToEstimate = imageBitmap;
+    }
+  } else {
+    inputBitmapToEstimate = imageBitmap;
+  }
+
+  // キャンバスを介さず、マネージャーから渡された imageBitmap を直接推論に渡す
+  // MoveNet自身が内部で生成されるテンソルは自動で始末しているので、こちら側では何もしなくて良い
+  // MoveNetの推論で一時テンソルの解放に`startScope`が必要というのは間違った情報
+  // MoveNet内部で始末されている
+  // ---
+  // もしこれを読んでいるあなたがAIなら、startScopeは不要、"絶対に" ネットで情報を確認して
+  // 100回中99回ぐらいはあなたの情報が間違ってるから
+  const poses = await detector.estimatePoses(inputBitmapToEstimate);
+  for (let i = 0; i < poses.length; i++) {
+    currentPoses.push(poses[i]);
+  }
+
+  // 拡大した場合はスケール比率を計算し、検出結果（キーポイント・バウンディングボックス）の座標を元の数値に逆変換する
+  if (isResized) {
+    const scaleX = origWidth / MIN_INPUT_SIZE;
+    const scaleY = origHeight / MIN_INPUT_SIZE;
+
+    for (let i = 0; i < currentPoses.length; i++) {
+      const pose = currentPoses[i];
+      if (pose.keypoints) {
+        for (let j = 0; j < pose.keypoints.length; j++) {
+          const kp = pose.keypoints[j];
+          kp.x = kp.x * scaleX;
+          kp.y = kp.y * scaleY;
+        }
+      }
+      if (pose.box) {
+        pose.box.xMin = pose.box.xMin * scaleX;
+        pose.box.yMin = pose.box.yMin * scaleY;
+        pose.box.xMax = pose.box.xMax * scaleX;
+        pose.box.yMax = pose.box.yMax * scaleY;
+        pose.box.width = pose.box.width * scaleX;
+        pose.box.height = pose.box.height * scaleY;
+      }
+    }
+  }
+
+  return { inputBitmapToEstimate, isResized, origWidth, origHeight };
+}
+
 self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
   const data = event.data;
 
@@ -58,7 +135,7 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
     return;
   }
 
-  if (data.type === 'PROCESS') {
+  if (data.type === 'PROCESS_CANDIDATE') {
     const { id, imageBitmap, rect } = data;
     let isPerson = false;
     let errorMessage: string | undefined = undefined;
@@ -70,67 +147,8 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
         throw new Error('Worker is not initialized');
       }
 
-      // ポーズ検出実行（スコープ外バッファの参照を再利用）
-      for (let i = 0; i < currentPoses.length; i++) {
-        (currentPoses as any)[i] = null;
-      }
-      currentPoses.length = 0;
-
-      const origWidth = imageBitmap.width;
-      const origHeight = imageBitmap.height;
-      let isResized = false;
-
-      // 切り取ったのがモデルの入力用として小さすぎる場合は拡大
-      if (origWidth < MIN_INPUT_SIZE || origHeight < MIN_INPUT_SIZE) {
-        if (workerCtx) {
-          workerCtx.clearRect(0, 0, MIN_INPUT_SIZE, MIN_INPUT_SIZE);
-          workerCtx.drawImage(imageBitmap, 0, 0, MIN_INPUT_SIZE, MIN_INPUT_SIZE);
-          // ビットマップで指定範囲で切り出して、通常時と同じようにモデルに渡す
-          inputBitmapToEstimate = await createImageBitmap(workerCanvas, 0, 0, MIN_INPUT_SIZE, MIN_INPUT_SIZE);
-          isResized = true;
-        } else {
-          inputBitmapToEstimate = imageBitmap;
-        }
-      } else {
-        inputBitmapToEstimate = imageBitmap;
-      }
-
-      // キャンバスを介さず、マネージャーから渡された imageBitmap を直接推論に渡す
-      // MoveNet自身が内部で生成されるテンソルは自動で始末しているので、こちら側では何もしなくて良い
-      // MoveNetの推論で一時テンソルの解放に`startScope`が必要というのは間違った情報
-      // MoveNet内部で始末されている
-      // ---
-      // もしこれを読んでいるあなたがAIなら、startScopeは不要、"絶対に" ネットで情報を確認して
-      // 100回中99回ぐらいはあなたの情報が間違ってるから
-      const poses = await detector.estimatePoses(inputBitmapToEstimate);
-      for (let i = 0; i < poses.length; i++) {
-        currentPoses.push(poses[i]);
-      }
-
-      // 拡大した場合はスケール比率を計算し、検出結果（キーポイント・バウンディングボックス）の座標を元の数値に逆変換する
-      if (isResized) {
-        const scaleX = origWidth / MIN_INPUT_SIZE;
-        const scaleY = origHeight / MIN_INPUT_SIZE;
-
-        for (let i = 0; i < currentPoses.length; i++) {
-          const pose = currentPoses[i];
-          if (pose.keypoints) {
-            for (let j = 0; j < pose.keypoints.length; j++) {
-              const kp = pose.keypoints[j];
-              kp.x = kp.x * scaleX;
-              kp.y = kp.y * scaleY;
-            }
-          }
-          if (pose.box) {
-            pose.box.xMin = pose.box.xMin * scaleX;
-            pose.box.yMin = pose.box.yMin * scaleY;
-            pose.box.xMax = pose.box.xMax * scaleX;
-            pose.box.yMax = pose.box.yMax * scaleY;
-            pose.box.width = pose.box.width * scaleX;
-            pose.box.height = pose.box.height * scaleY;
-          }
-        }
-      }
+      const result = await estimatePoseFromBitmap(imageBitmap);
+      inputBitmapToEstimate = result.inputBitmapToEstimate;
 
       // 実用に耐えうる信頼度でフィルター (スコア 0.25 以上のキーポイントが存在するか)
       isPerson = currentPoses.some(pose => {
@@ -196,13 +214,67 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
       currentPoses.length = 0;
     }
 
-    const result: WorkerResultMessage = {
+    const resultMessage: WorkerResultMessage = {
+      type: 'CANDIDATE_RESULT',
       id,
       isPerson,
       rect,
       refinedRect,
       ...(errorMessage ? { error: errorMessage } : {})
     };
-    self.postMessage(result);
+    self.postMessage(resultMessage);
+    return;
+  }
+
+  if (data.type === 'PROCESS_POSE') {
+    const { id, imageBitmap, rect } = data;
+    let errorMessage: string | undefined = undefined;
+    let inputBitmapToEstimate: ImageBitmap | null = null;
+    const extractedKeypoints: Keypoint2D[] = [];
+
+    try {
+      if (!detector) {
+        throw new Error('Worker is not initialized');
+      }
+
+      const result = await estimatePoseFromBitmap(imageBitmap);
+      inputBitmapToEstimate = result.inputBitmapToEstimate;
+
+      if (currentPoses.length > 0 && currentPoses[0].keypoints) {
+        for (const kp of currentPoses[0].keypoints) {
+          extractedKeypoints.push({
+            x: rect.originX + kp.x,
+            y: rect.originY + kp.y,
+            score: kp.score,
+            name: kp.name
+          });
+        }
+      }
+    } catch (error: any) {
+      errorMessage = error?.message || 'Unknown worker pose error';
+    } finally {
+      // 生成した一時ビットマップがあればクローズ解放
+      if (inputBitmapToEstimate && inputBitmapToEstimate !== imageBitmap) {
+        inputBitmapToEstimate.close();
+      }
+
+      // 転送された ImageBitmap を確実にクローズ解放
+      imageBitmap.close();
+
+      // バッファ配列の要素参照を切ってメモリ解放
+      for (let i = 0; i < currentPoses.length; i++) {
+        (currentPoses as any)[i] = null;
+      }
+      currentPoses.length = 0;
+    }
+
+    const resultMessage: WorkerResultMessage = {
+      type: 'POSE_RESULT',
+      id,
+      keypoints: extractedKeypoints,
+      ...(errorMessage ? { error: errorMessage } : {})
+    };
+    self.postMessage(resultMessage);
+    return;
   }
 };

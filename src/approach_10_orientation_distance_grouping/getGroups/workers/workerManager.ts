@@ -1,10 +1,17 @@
-import { WorkerIncomingMessage, WorkerResultMessage, BoundingBoxRect } from '../types';
+import {
+  WorkerIncomingMessage,
+  WorkerResultMessage,
+  WorkerCandidateResultMessage,
+  WorkerPoseResultMessage,
+  BoundingBoxRect
+} from '../types';
 
 interface Task {
   id: number;
+  type: 'CANDIDATE' | 'POSE';
   imageBitmap: ImageBitmap;
   rect: BoundingBoxRect;
-  resolve: (result: WorkerResultMessage) => void;
+  resolve: (result: any) => void;
   reject: (reason: unknown) => void;
 }
 
@@ -42,11 +49,27 @@ export class WorkerPoolManager {
     id: number,
     imgWidth: number,
     imgHeight: number
-  ): Promise<WorkerResultMessage> {
+  ): Promise<WorkerCandidateResultMessage> {
     await this.#ensureInitialized(imgWidth, imgHeight);
 
     return new Promise((resolve, reject) => {
-      const task: Task = { id, imageBitmap, rect, resolve, reject };
+      const task: Task = { id, type: 'CANDIDATE', imageBitmap, rect, resolve, reject };
+      this.#taskQueue.push(task);
+      this.#dispatch();
+    });
+  }
+
+  public async processPose(
+    imageBitmap: ImageBitmap,
+    rect: BoundingBoxRect,
+    id: number,
+    imgWidth: number,
+    imgHeight: number
+  ): Promise<WorkerPoseResultMessage> {
+    await this.#ensureInitialized(imgWidth, imgHeight);
+
+    return new Promise((resolve, reject) => {
+      const task: Task = { id, type: 'POSE', imageBitmap, rect, resolve, reject };
       this.#taskQueue.push(task);
       this.#dispatch();
     });
@@ -94,12 +117,20 @@ export class WorkerPoolManager {
     worker.addEventListener('message', onMessage);
     worker.addEventListener('error', onError);
 
-    const message: WorkerIncomingMessage = {
-      type: 'PROCESS',
-      id: task.id,
-      imageBitmap: task.imageBitmap,
-      rect: task.rect
-    };
+    const message: WorkerIncomingMessage =
+      task.type === 'CANDIDATE'
+        ? {
+            type: 'PROCESS_CANDIDATE',
+            id: task.id,
+            imageBitmap: task.imageBitmap,
+            rect: task.rect
+          }
+        : {
+            type: 'PROCESS_POSE',
+            id: task.id,
+            imageBitmap: task.imageBitmap,
+            rect: task.rect
+          };
 
     try {
       // 所有権移転（Transferable）でデータ転送を最適化

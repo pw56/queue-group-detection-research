@@ -1,16 +1,3 @@
-import { Detection } from '@mediapipe/tasks-vision';
-
-// BoundingBox型から 'angle' プロパティだけを除外した配列型にする
-type Group = Omit<Detection['boundingBox'], 'angle'>[];
-type Groups = Group[];
-
-type GroupDetectionImageSource = HTMLImageElement;
-
-export type { Group, Groups, GroupDetectionImageSource };
-export type { Detection, BoundingBox } from '@mediapipe/tasks-vision';
-
-// グループ検出内部で使用される型定義
-
 // バウンディングボックス
 export interface BoundingBoxRect {
   originX: number;
@@ -19,6 +6,37 @@ export interface BoundingBoxRect {
   height: number;
 }
 
+// 2Dポイント（骨格の座標）
+export interface Keypoint2D {
+  x: number;
+  y: number;
+  score?: number;
+  name?: string;
+}
+
+// 向きのベクトル表現
+export interface DirectionVector {
+  x: number;
+  y: number;
+  z?: number;
+}
+
+// 人物情報型（全てのプロパティが任意）
+export interface Person {
+  boundingBox?: BoundingBoxRect;
+  keypoints?: Keypoint2D[];
+  direction?: DirectionVector;
+}
+
+// Group型およびGroups型をPersonベースに変更
+type Group = Person[];
+type Groups = Group[];
+
+type GroupDetectionImageSource = HTMLImageElement;
+
+export type { Group, Groups, GroupDetectionImageSource };
+export type { Detection, BoundingBox } from '@mediapipe/tasks-vision';
+
 // ワーカー向け
 interface WorkerInitMessage {
   type: 'INIT';
@@ -26,16 +44,24 @@ interface WorkerInitMessage {
   height: number;
 }
 
-interface WorkerProcessMessage {
-  type: 'PROCESS';
+interface WorkerCandidateMessage {
+  type: 'PROCESS_CANDIDATE';
   id: number;
   imageBitmap: ImageBitmap;
   rect: BoundingBoxRect;
 }
 
-type WorkerIncomingMessage = WorkerInitMessage | WorkerProcessMessage;
+interface WorkerPoseMessage {
+  type: 'PROCESS_POSE';
+  id: number;
+  imageBitmap: ImageBitmap;
+  rect: BoundingBoxRect;
+}
 
-interface WorkerResultMessage {
+type WorkerIncomingMessage = WorkerInitMessage | WorkerCandidateMessage | WorkerPoseMessage;
+
+interface WorkerCandidateResultMessage {
+  type: 'CANDIDATE_RESULT';
   id: number;
   isPerson: boolean;
   rect: BoundingBoxRect;
@@ -43,4 +69,21 @@ interface WorkerResultMessage {
   error?: string;
 }
 
-export type { WorkerInitMessage, WorkerIncomingMessage, WorkerResultMessage };
+interface WorkerPoseResultMessage {
+  type: 'POSE_RESULT';
+  id: number;
+  keypoints: Keypoint2D[];
+  error?: string;
+}
+
+type WorkerResultMessage = WorkerCandidateResultMessage | WorkerPoseResultMessage;
+
+export type {
+  WorkerInitMessage,
+  WorkerCandidateMessage,
+  WorkerPoseMessage,
+  WorkerIncomingMessage,
+  WorkerCandidateResultMessage,
+  WorkerPoseResultMessage,
+  WorkerResultMessage
+};

@@ -1,6 +1,6 @@
-import { Groups } from "./types";
+import { Groups, Person } from "./types";
 
-// `Group`型を無理やり`Groups`型に変換
-export function convertToGroups(people: any[]): Groups {
+// `Person`型の配列を強制的に`Groups`型に変換
+export function convertToGroups(people: Person[]): Groups {
   return people.map((detectedPerson) => [detectedPerson]);
 }

@@ -1,5 +1,5 @@
 import { ObjectDetector, FilesetResolver, Detection, Category } from '@mediapipe/tasks-vision';
-import { GroupDetectionImageSource, BoundingBoxRect } from '../types';
+import { GroupDetectionImageSource, BoundingBoxRect, Person } from '../types';
 import { workerPoolManager } from '../workers';
 import { deduplicateDetections } from './deduplicateDetections';
 import { RefreshEvaluator } from './refreshMediapipe';
@@ -50,8 +50,8 @@ async function refreshDetector(): Promise<void> {
 // 人物の検出
 export async function detectPeople(
   imageSource: GroupDetectionImageSource,
-  outResult: Detection[] = []
-): Promise<Detection[]> {
+  outResult: Person[] = []
+): Promise<Person[]> {
 
   if (!objectDetector)
     await initializeDetector();
@@ -194,7 +194,15 @@ export async function detectPeople(
 
     outResult.length = 0;
     for (let i = 0; i < finalDetectionsBuffer.length; i++) {
-      outResult.push(finalDetectionsBuffer[i]);
+      const box = finalDetectionsBuffer[i].boundingBox!;
+      outResult.push({
+        boundingBox: {
+          originX: box.originX,
+          originY: box.originY,
+          width: box.width,
+          height: box.height
+        }
+      });
     }
 
     // 検出された人数（グループ数）を記録し、条件判定を満たせばリフレッシュ実行
