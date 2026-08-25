@@ -100,16 +100,14 @@ export const ResultView = ({
                 const score1 = kp1.score ?? 1;
                 const score2 = kp2.score ?? 1;
 
-                // 両方のキーポイントの信頼度が閾値を超えている場合のみ線を描画
-                if (score1 > 0.3 && score2 > 0.3) {
-                  const avgScore = (score1 + score2) / 2;
-                  ctx.beginPath();
-                  ctx.moveTo(kp1.x + offsetX, kp1.y + offsetY);
-                  ctx.lineTo(kp2.x + offsetX, kp2.y + offsetY);
-                  ctx.strokeStyle = `rgba(0, 255, 255, ${avgScore})`;
-                  ctx.lineWidth = 2;
-                  ctx.stroke();
-                }
+                // キーポイントを結ぶ線を描画
+                const avgScore = (score1 + score2) / 2;
+                ctx.beginPath();
+                ctx.moveTo(kp1.x + offsetX, kp1.y + offsetY);
+                ctx.lineTo(kp2.x + offsetX, kp2.y + offsetY);
+                ctx.strokeStyle = `rgba(0, 255, 255, ${avgScore})`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
               }
             });
 
