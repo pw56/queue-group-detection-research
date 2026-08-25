@@ -114,27 +114,25 @@ export const ResultView = ({
             // 骨格の点（キーポイント）を描画
             keypoints.forEach((kp) => {
               const score = kp.score ?? 1;
-              if (score > 0.3) {
-                const kpX = kp.x + offsetX;
-                const kpY = kp.y + offsetY;
+              const kpX = kp.x + offsetX;
+              const kpY = kp.y + offsetY;
 
-                ctx.save();
-                ctx.globalAlpha = score; // 信頼度を透明度に設定
+              ctx.save();
+              ctx.globalAlpha = score; // 信頼度を透明度に設定
 
-                // 黒の輪郭
-                ctx.beginPath();
-                ctx.arc(kpX, kpY, 4, 0, 2 * Math.PI);
-                ctx.fillStyle = 'black';
-                ctx.fill();
+              // 黒の輪郭
+              ctx.beginPath();
+              ctx.arc(kpX, kpY, 4, 0, 2 * Math.PI);
+              ctx.fillStyle = 'black';
+              ctx.fill();
 
-                // 中心の白
-                ctx.beginPath();
-                ctx.arc(kpX, kpY, 2, 0, 2 * Math.PI);
-                ctx.fillStyle = 'white';
-                ctx.fill();
+              // 中心の白
+              ctx.beginPath();
+              ctx.arc(kpX, kpY, 2, 0, 2 * Math.PI);
+              ctx.fillStyle = 'white';
+              ctx.fill();
 
-                ctx.restore();
-              }
+              ctx.restore();
             });
           }
         }
