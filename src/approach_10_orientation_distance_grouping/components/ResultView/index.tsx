@@ -66,7 +66,7 @@ export const ResultView = ({
       // グループに含まれる人物のbboxを描画
       group.forEach((person) => {
         if (person) {
-          const { originX, originY, width: w, height: h } = person;
+          const { originX, originY, width: w, height: h } = person.boundingBox!;
           // croppedBoundingBox が存在する場合にオフセット座標を計算
           const offsetX = croppedBoundingBox ? croppedBoundingBox.x : 0;
           const offsetY = croppedBoundingBox ? croppedBoundingBox.y : 0;
