@@ -1,11 +1,7 @@
-import { Group, BoundingBox } from '../../getGroups';
+import { Group, BoundingBoxRect } from '../../getGroups';
 
-/**
- * 複数のDetectionから、それらをすべて内包する親BoundingBoxを生成する関数
- * @param people MediaPipeの検出結果配列
- * @returns すべてを包み込む1つのBoundingBox。配列が空の場合はnullを返す。
- */
-export function createParentBoundingBox(people: Group): BoundingBox | null {
+// グループを内包する親のバウンディングボックスを生成する関数
+export function createParentBoundingBox(people: Group): BoundingBoxRect | null {
   // 配列が空、または有効なBBoxがない場合はnullを返す
   if (!people || people.length === 0) {
     return null;
@@ -47,10 +43,9 @@ export function createParentBoundingBox(people: Group): BoundingBox | null {
   const parentHeight = globalMaxY - globalMinY;
 
   return {
-  originX: globalMinX,
-  originY: globalMinY,
-  width: parentWidth,
-  height: parentHeight,
-  angle: 0 // 方向は使わないので切り捨て
-};
+    originX: globalMinX,
+    originY: globalMinY,
+    width: parentWidth,
+    height: parentHeight
+  };
 }

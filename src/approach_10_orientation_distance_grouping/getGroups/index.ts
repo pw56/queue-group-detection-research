@@ -22,4 +22,4 @@ export async function getGroups(imageSource: GroupDetectionImageSource): Promise
   }
 }
 
-export type { Person, Group, Groups, GroupDetectionImageSource, Detection, BoundingBox } from './types';
+export type { Person, Group, Groups, GroupDetectionImageSource, BoundingBoxRect } from './types';

@@ -35,7 +35,6 @@ type Groups = Group[];
 type GroupDetectionImageSource = HTMLImageElement;
 
 export type { Group, Groups, GroupDetectionImageSource };
-export type { Detection, BoundingBox } from '@mediapipe/tasks-vision';
 
 // ワーカー向け
 interface WorkerInitMessage {
