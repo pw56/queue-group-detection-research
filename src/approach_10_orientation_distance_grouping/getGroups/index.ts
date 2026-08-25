@@ -1,21 +1,23 @@
 import { Groups, GroupDetectionImageSource, Person } from './types';
 import { detectPeople } from './detectPeople';
 import { detectPoses } from './detectPoses';
-import { convertToGroups } from './convertToGroups';
+import { groupPeople } from './groupPeople';
 
-// スコープ外で一度だけ配列を生成
-// OOM対策
+// スコープ外で一度だけ配列を生成（OOM対策）
 const reusablePeople: Person[] = [];
 
-// グループの検出 (人物をグループに見せかけてそのまま返す)
+/**
+ * 画像から人物およびそのポーズ・向きを検出し、グループ分けを行って返す
+ */
 export async function getGroups(imageSource: GroupDetectionImageSource): Promise<Groups> {
-
-  if (!imageSource) throw new Error("No input data exists");
+  if (!imageSource) {
+    throw new Error("No input data exists");
+  }
 
   try {
     const peopleDetections = await detectPeople(imageSource, reusablePeople);
     const peopleWithPoses = await detectPoses(imageSource, peopleDetections);
-    const groups = convertToGroups(peopleWithPoses);
+    const groups = groupPeople(peopleWithPoses);
     return groups;
   } catch (error) {
     throw new Error("Detection error", { cause: error });
