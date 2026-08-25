@@ -1,29 +1,25 @@
 # 1. 列推定アルゴリズム (estimateQueueLine)
 
-本モジュールは、画像から検出された人物群の位置座標（BoundingBox）および人物の向き（DirectionVector）を利用し、行列（キュー）の存在を認識した上で、列全体の軸となる主直線 $\boldsymbol{L}$ を算出するアルゴリズムです。
+本モジュールは、画像から検出された人物群のバウンディングボックスの横幅（width）のみを利用し、横幅が最大の人物（最手前）と最小の人物（最奥）の座標から、列の起点 $\boldsymbol{p}_{\text{origin}}$ および方向を示すベクトル $\boldsymbol{d}$ を算出するアルゴリズムです。
 
 ---
 
 ## 数式モデル
 
-### (1) 人物座標の中心算出
-各人物 $i$ の代表点 $(x_i, y_i)$ を算出します。MoveNetのキーポイントから信頼度（$\ge 0.5$）を満たす足首（左足首 index 15, 右足首 index 16）の座標を取得します。
-- 両足首が信頼度を満たす場合：両足首の平均座標
-- 片足首のみ信頼度を満たす場合：満たした片足首の座標
-- 両足首とも信頼度を満たさない場合：列の推定対象から除外
+### (1) 最手前・最奥人物の特定
+各人物のバウンディングボックス横幅 $w_i$ に基づき、最手前（$P_{\text{front}}$）および最奥（$P_{\text{back}}$）の人物を決定します：
+$$P_{\text{front}} = \arg\max_i (w_i), \quad P_{\text{back}} = \arg\min_i (w_i)$$
 
-有効な足首座標が得られた人物のみを対象に、全体平均 $(\bar{x}, \bar{y})$ を算出します：
-$$\bar{x} = \frac{1}{N} \sum_{i=1}^N x_i, \quad \bar{y} = \frac{1}{N} \sum_{i=1}^N y_i$$
+### (2) 基準座標の抽出
+それぞれのバウンディングボックス底辺中央の座標を各点の代表位置とします：
+$$\boldsymbol{p}_{\text{front}} = \left( \text{originX}_{\text{front}} + \frac{w_{\text{front}}}{2}, \; \text{originY}_{\text{front}} + h_{\text{front}} \right)$$
+$$\boldsymbol{p}_{\text{back}} = \left( \text{originX}_{\text{back}} + \frac{w_{\text{back}}}{2}, \; \text{originY}_{\text{back}} + h_{\text{back}} \right)$$
 
-### (2) 主成分分析 (PCA) による軸推定
-共分散行列 $S$ の要素を求めます：
-$$S_{xx} = \sum_{i=1}^N (x_i - \bar{x})^2, \quad S_{yy} = \sum_{i=1}^N (y_i - \bar{y})^2, \quad S_{xy} = \sum_{i=1}^N (x_i - \bar{x})(y_i - \bar{y})$$
+列の起点座標として、最手前人物の位置を採用します：
+$$\boldsymbol{p}_{\text{origin}} = \boldsymbol{p}_{\text{front}}$$
 
-最大固有値に対応する主軸の角度 $\theta_{\text{pca}}$:
-$$\theta_{\text{pca}} = \frac{1}{2} \operatorname{atan2}\left(2 S_{xy}, S_{xx} - S_{yy}\right)$$
+### (3) 方向ベクトルの算出
+手前 $\boldsymbol{p}_{\text{front}}$ から奥 $\boldsymbol{p}_{\text{back}}$ への差分ベクトルを求め、正規化して列の単位方向ベクトル $\boldsymbol{d} = (u, v)$ とします：
 
-PCA方向ベクトル $\boldsymbol{d}_{\text{pca}} = (\cos\theta_{\text{pca}}, \sin\theta_{\text{pca}})$。
-
-### (3) 向きベクトルの合成
-検出された向きベクトルの平均 $\boldsymbol{d}_{\text{dir}} = (\bar{d}_x, \bar{d}_y)$ を考慮し、列の方向ベクトル $\boldsymbol{d} = (u, v)$ を正規化して算出します：
-$$\boldsymbol{d} = \frac{w_{\text{pca}} \boldsymbol{d}_{\text{pca}} + w_{\text{dir}} \boldsymbol{d}_{\text{dir}}}{\|w_{\text{pca}} \boldsymbol{d}_{\text{pca}} + w_{\text{dir}} \boldsymbol{d}_{\text{dir}}\|}$$
+$$\boldsymbol{v} = \boldsymbol{p}_{\text{back}} - \boldsymbol{p}_{\text{front}}$$
+$$\boldsymbol{d} = \frac{\boldsymbol{v}}{\|\boldsymbol{v}\|}$$
