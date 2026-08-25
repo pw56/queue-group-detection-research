@@ -15,6 +15,8 @@ const POSE_CONNECTIONS: [number, number][] = [
   [12, 14], [14, 16]                  // 右脚 (腰-膝-足首)
 ];
 
+const MIN_KEYPOINT_ALPHA = 0.1;
+
 export const ResultView = ({
   mediaSource,
   groups,
@@ -118,7 +120,7 @@ export const ResultView = ({
               const kpY = kp.y + offsetY;
 
               ctx.save();
-              ctx.globalAlpha = score; // 信頼度を透明度に設定
+              ctx.globalAlpha = Math.max(score, MIN_KEYPOINT_ALPHA); // 信頼度を透明度に設定
 
               // 黒の輪郭
               ctx.beginPath();
