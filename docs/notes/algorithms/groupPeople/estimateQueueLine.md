@@ -1,25 +1,31 @@
 # 1. 列推定アルゴリズム (estimateQueueLine)
 
-本モジュールは、画像から検出された人物群のバウンディングボックスの横幅（width）のみを利用し、横幅が最大の人物（最手前）と最小の人物（最奥）の座標から、列の起点 $\boldsymbol{p}_{\text{origin}}$ および方向を示すベクトル $\boldsymbol{d}$ を算出するアルゴリズムです。
+本モジュールは、画像から検出された人物群のバウンディングボックス底面座標の分布（主成分分析: PCA）によって列自体の**直線軸**を求め、バウンディングボックス横幅（手前が大きい）によって列の**前後方向（ベクトル向き）**を確定・合成するアルゴリズムです。
 
 ---
 
 ## 数式モデル
 
-### (1) 最手前・最奥人物の特定
-各人物のバウンディングボックス横幅 $w_i$ に基づき、最手前（$P_{\text{front}}$）および最奥（$P_{\text{back}}$）の人物を決定します：
-$$P_{\text{front}} = \arg\max_i (w_i), \quad P_{\text{back}} = \arg\min_i (w_i)$$
+### (1) 代表座標の算出
+各人物 $i$ のバウンディングボックス底辺中央の座標 $(x_i, y_i)$ および横幅 $w_i$ を抽出します：
+$$x_i = \text{originX}_i + \frac{\text{width}_i}{2}, \quad y_i = \text{originY}_i + \text{height}_i$$
 
-### (2) 基準座標の抽出
-それぞれのバウンディングボックス底辺中央の座標を各点の代表位置とします：
-$$\boldsymbol{p}_{\text{front}} = \left( \text{originX}_{\text{front}} + \frac{w_{\text{front}}}{2}, \; \text{originY}_{\text{front}} + h_{\text{front}} \right)$$
-$$\boldsymbol{p}_{\text{back}} = \left( \text{originX}_{\text{back}} + \frac{w_{\text{back}}}{2}, \; \text{originY}_{\text{back}} + h_{\text{back}} \right)$$
+全体の平均座標 $(\bar{x}, \bar{y})$:
+$$\bar{x} = \frac{1}{N} \sum_{i=1}^N x_i, \quad \bar{y} = \frac{1}{N} \sum_{i=1}^N y_i$$
 
-列の起点座標として、最手前人物の位置を採用します：
-$$\boldsymbol{p}_{\text{origin}} = \boldsymbol{p}_{\text{front}}$$
+### (2) 底面座標の分布（PCA）による直線推定
+共分散行列の要素を算出し、点の分布が最も広がっている直線軸の方向 $\theta_{\text{pca}}$ を求めます：
+$$S_{xx} = \sum_{i=1}^N (x_i - \bar{x})^2, \quad S_{yy} = \sum_{i=1}^N (y_i - \bar{y})^2, \quad S_{xy} = \sum_{i=1}^N (x_i - \bar{x})(y_i - \bar{y})$$
 
-### (3) 方向ベクトルの算出
-手前 $\boldsymbol{p}_{\text{front}}$ から奥 $\boldsymbol{p}_{\text{back}}$ への差分ベクトルを求め、正規化して列の単位方向ベクトル $\boldsymbol{d} = (u, v)$ とします：
+$$\theta_{\text{pca}} = \frac{1}{2} \operatorname{atan2}\left(2 S_{xy}, S_{xx} - S_{yy}\right)$$
 
-$$\boldsymbol{v} = \boldsymbol{p}_{\text{back}} - \boldsymbol{p}_{\text{front}}$$
-$$\boldsymbol{d} = \frac{\boldsymbol{v}}{\|\boldsymbol{v}\|}$$
+直線軸の無指向性ベクトル:
+$$\boldsymbol{d}_{\text{pca}} = (\cos\theta_{\text{pca}}, \sin\theta_{\text{pca}})$$
+
+### (3) 横幅による前後向き（ベクトルの正負）確定
+バウンディングボックス横幅が最大の人物（最手前 $P_{\text{front}}$）から最小の人物（最奥 $P_{\text{back}}$）へ向かう参考ベクトル $\boldsymbol{v}_{\text{width}}$ を算出します：
+$$\boldsymbol{v}_{\text{width}} = \boldsymbol{p}_{\text{back}} - \boldsymbol{p}_{\text{front}}$$
+
+PCA直線ベクトル $\boldsymbol{d}_{\text{pca}}$ と 内積 $\boldsymbol{d}_{\text{pca}} \cdot \boldsymbol{v}_{\text{width}}$ を計算し、負（逆向き）である場合はベクトルの向きを反転させて手前→奥の方向に揃えます：
+
+$$\boldsymbol{d} = \begin{cases} \boldsymbol{d}_{\text{pca}} & (\boldsymbol{d}_{\text{pca}} \cdot \boldsymbol{v}_{\text{width}} \ge 0) \\ -\boldsymbol{d}_{\text{pca}} & (\boldsymbol{d}_{\text{pca}} \cdot \boldsymbol{v}_{\text{width}} < 0) \end{cases}$$

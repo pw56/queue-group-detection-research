@@ -1,63 +1,96 @@
 import { Person, DirectionVector } from '../types';
 
 export interface QueueLine {
-  /** 列の代表点 (中心など) */
+  /** 列の代表点 (全体中心など) */
   origin: { x: number; y: number };
   /** 列の方向を示す単位ベクトル (dx, dy) */
   direction: DirectionVector;
 }
 
 /**
- * バウンディングボックスの横幅（手前が大きい）から
- * 最手前と最奥の点を取り、列の方向ベクトルを求めるアルゴリズム
+ * 1. 人物の底面座標の分布（PCA）により直線自体を推定
+ * 2. バウンディングボックスの横幅（手前が大きい）によりベクトルの前後方向（正負）を確定
  */
 export function estimateQueueLine(people: Person[]): QueueLine | null {
   if (!people || people.length === 0) {
     return null;
   }
 
-  let maxPerson: Person | null = null;
-  let minPerson: Person | null = null;
-  let maxWidth = -1;
-  let minWidth = Infinity;
+  const validData: { cx: number; cy: number; width: number }[] = [];
 
-  // 1. バウンディングボックスの横幅が最大（最手前）と最小（最奥）の人物を特定
   for (let i = 0; i < people.length; i++) {
     const box = people[i].boundingBox;
     if (box) {
-      if (box.width > maxWidth) {
-        maxWidth = box.width;
-        maxPerson = people[i];
-      }
-      if (box.width < minWidth) {
-        minWidth = box.width;
-        minPerson = people[i];
-      }
+      // 底面中央の座標と横幅を取得
+      const cx = box.originX + box.width / 2;
+      const cy = box.originY + box.height;
+      validData.push({ cx, cy, width: box.width });
     }
   }
 
-  if (!maxPerson || !minPerson || !maxPerson.boundingBox || !minPerson.boundingBox) {
+  if (validData.length === 0) {
     return null;
   }
 
-  // 2. 代表点（手前人物と奥人物の位置座標）を取得
-  const startX = maxPerson.boundingBox.originX + maxPerson.boundingBox.width / 2;
-  const startY = maxPerson.boundingBox.originY + maxPerson.boundingBox.height;
+  // 人数が1人の場合は直線・方向が定義できないため null
+  if (validData.length === 1) {
+    return null;
+  }
 
-  const endX = minPerson.boundingBox.originX + minPerson.boundingBox.width / 2;
-  const endY = minPerson.boundingBox.originY + minPerson.boundingBox.height;
+  // 1. 底面座標の平均（全体中心）を算出
+  let sumX = 0;
+  let sumY = 0;
+  for (let i = 0; i < validData.length; i++) {
+    sumX += validData[i].cx;
+    sumY += validData[i].cy;
+  }
+  const meanX = sumX / validData.length;
+  const meanY = sumY / validData.length;
 
-  // 3. 手前から奥へ向かう方向ベクトルの算出
-  const vx = endX - startX;
-  const vy = endY - startY;
-  const len = Math.hypot(vx, vy);
+  // 2. 底面座標の分布に基づく主成分分析 (PCA) により直線軸を推定
+  let sXX = 0;
+  let sYY = 0;
+  let sXY = 0;
 
-  const direction: DirectionVector = len > 0 
-    ? { x: vx / len, y: vy / len }
-    : { x: 0, y: 0 };
+  for (let i = 0; i < validData.length; i++) {
+    const dx = validData[i].cx - meanX;
+    const dy = validData[i].cy - meanY;
+    sXX += dx * dx;
+    sYY += dy * dy;
+    sXY += dx * dy;
+  }
+
+  // 分散最大方向の角度
+  const pcaAngle = 0.5 * Math.atan2(2 * sXY, sXX - sYY);
+  let dirX = Math.cos(pcaAngle);
+  let dirY = Math.sin(pcaAngle);
+
+  // 3. バウンディングボックス横幅の変化から前後の向き（手前→奥）を判定
+  // 最大横幅（最手前）と最小横幅（最奥）の点を抽出
+  let maxPerson = validData[0];
+  let minPerson = validData[0];
+
+  for (let i = 1; i < validData.length; i++) {
+    if (validData[i].width > maxPerson.width) {
+      maxPerson = validData[i];
+    }
+    if (validData[i].width < minPerson.width) {
+      minPerson = validData[i];
+    }
+  }
+
+  // 手前（大）から奥（小）への参考ベクトル
+  const widthVectorX = minPerson.cx - maxPerson.cx;
+  const widthVectorY = minPerson.cy - maxPerson.cy;
+
+  // PCAの軸と横幅ベクトルの内積が負なら方向を反転（手前→奥に揃える）
+  if (dirX * widthVectorX + dirY * widthVectorY < 0) {
+    dirX = -dirX;
+    dirY = -dirY;
+  }
 
   return {
-    origin: { x: startX, y: startY },
-    direction
+    origin: { x: meanX, y: meanY },
+    direction: { x: dirX, y: dirY }
   };
 }
