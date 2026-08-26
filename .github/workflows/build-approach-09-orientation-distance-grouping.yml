@@ -1,9 +1,9 @@
-name: Build approach_09_optimize_performance / integrated
+name: Build approach_09_orientation_distance_grouping
 
 on:
   push:
     paths:
-      - 'src/approach_09_optimize_performance/integrated/**'
+      - 'src/approach_09_orientation_distance_grouping/**'
 
 # GitHub Pages へのデプロイに必要な権限を設定
 permissions:
@@ -14,4 +14,4 @@ jobs:
   build-and-deploy:
     uses: ./.github/workflows/build-and-deploy.yml
     with:
-      directory: ./src/approach_09_optimize_performance/integrated
+      directory: ./src/approach_09_orientation_distance_grouping

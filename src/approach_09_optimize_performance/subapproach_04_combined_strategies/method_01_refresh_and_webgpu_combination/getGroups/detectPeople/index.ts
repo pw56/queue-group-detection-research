@@ -1,1 +1,0 @@
-export { detectPeople } from './detectPeople';
