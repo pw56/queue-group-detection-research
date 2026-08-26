@@ -2,7 +2,7 @@ import { GroupDetectionImageSource, Person, Keypoint2D, DirectionVector, Boundin
 import { workerPoolManager } from './workers';
 
 // キーポイントから身体の向き（2Dベクトル）を算出する関数
-export function calculateBodyDirection(keypoints: Keypoint2D[]): DirectionVector {
+function calculateBodyDirection(keypoints: Keypoint2D[]): DirectionVector {
   if (!keypoints || keypoints.length === 0) {
     return { x: 0, y: 0 };
   }
