@@ -15,7 +15,7 @@ interface Task {
   reject: (reason: unknown) => void;
 }
 
-export class WorkerPoolManager {
+class WorkerPoolManager {
   #poolSize: number;
   #workers: Worker[] = [];
   #idleWorkers: Worker[] = [];

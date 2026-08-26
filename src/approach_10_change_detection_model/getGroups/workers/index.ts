@@ -1,1 +1,1 @@
-export { WorkerPoolManager, workerPoolManager } from './workerManager';
+export { workerPoolManager } from './workerManager';
