@@ -43,13 +43,6 @@ interface WorkerInitMessage {
   height: number;
 }
 
-interface WorkerCandidateMessage {
-  type: 'PROCESS_CANDIDATE';
-  id: number;
-  imageBitmap: ImageBitmap;
-  rect: BoundingBoxRect;
-}
-
 interface WorkerPoseMessage {
   type: 'PROCESS_POSE';
   id: number;
@@ -57,16 +50,15 @@ interface WorkerPoseMessage {
   rect: BoundingBoxRect;
 }
 
-type WorkerIncomingMessage = WorkerInitMessage | WorkerCandidateMessage | WorkerPoseMessage;
-
-interface WorkerCandidateResultMessage {
-  type: 'CANDIDATE_RESULT';
+interface WorkerPeopleMessage {
+  type: 'PROCESS_PEOPLE';
   id: number;
-  isPerson: boolean;
-  rect: BoundingBoxRect;
-  refinedRect?: BoundingBoxRect;
-  error?: string;
+  imageBitmap: ImageBitmap;
+  imgWidth: number;
+  imgHeight: number;
 }
+
+type WorkerIncomingMessage = WorkerInitMessage | WorkerPoseMessage | WorkerPeopleMessage;
 
 interface WorkerPoseResultMessage {
   type: 'POSE_RESULT';
@@ -75,14 +67,19 @@ interface WorkerPoseResultMessage {
   error?: string;
 }
 
-type WorkerResultMessage = WorkerCandidateResultMessage | WorkerPoseResultMessage;
+interface WorkerPeopleResultMessage {
+  type: 'PEOPLE_RESULT';
+  id: number;
+  people: Person[];
+  error?: string;
+}
+
+type WorkerResultMessage = WorkerPoseResultMessage | WorkerPeopleResultMessage;
 
 export type {
   WorkerInitMessage,
-  WorkerCandidateMessage,
-  WorkerPoseMessage,
   WorkerIncomingMessage,
-  WorkerCandidateResultMessage,
   WorkerPoseResultMessage,
+  WorkerPeopleResultMessage,
   WorkerResultMessage
 };
