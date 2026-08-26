@@ -8,6 +8,7 @@
     "@tensorflow/tfjs-backend-webgpu": "^4.22.0",
     "fflate": "^0.8.3",
     "konva": "^10.3.0",
+    "onnxruntime-web": "^1.29.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-konva": "^19.2.5",
