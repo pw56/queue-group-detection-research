@@ -70,21 +70,10 @@ function processDetections(
         const x2 = Math.min(target.originX + target.width, candidate.originX + candidate.width);
         const overlapWidth = Math.max(0, x2 - x1);
 
-        const targetRight = target.originX + target.width;
-        const candidateRight = candidate.originX + candidate.width;
-
-        // 内包チェック (一方がもう一方を完全に含んでいる場合は除外)
-        const isTargetEnclosingCandidate =
-          target.originX <= candidate.originX && targetRight >= candidateRight;
-        const isCandidateEnclosingTarget =
-          candidate.originX <= target.originX && candidateRight >= targetRight;
-
-        if (!isTargetEnclosingCandidate && !isCandidateEnclosingTarget) {
-          const minWidth = Math.min(target.width, candidate.width);
-          if (minWidth > 0 && overlapWidth / minWidth >= HORIZONTAL_OVERLAP_THRESHOLD) {
-            shouldGroup = true;
-            break;
-          }
+        const minWidth = Math.min(target.width, candidate.width);
+        if (minWidth > 0 && overlapWidth / minWidth >= HORIZONTAL_OVERLAP_THRESHOLD) {
+          shouldGroup = true;
+          break;
         }
       }
 
