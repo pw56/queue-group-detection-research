@@ -2,12 +2,8 @@ import { ObjectDetector, FilesetResolver, Detection, Category } from '@mediapipe
 import { GroupDetectionImageSource, BoundingBoxRect } from '../types';
 import { workerPoolManager } from '../workers';
 import { deduplicateDetections } from './deduplicateDetections';
-import { RefreshEvaluator } from './refreshMediapipe';
 
 let objectDetector: ObjectDetector | null = null;
-
-// ファイルのトップレベルでリフレッシュロジックのインスタンスを保持・使い回り（内部でフレーム数も管理）
-const refreshEvaluator = new RefreshEvaluator();
 
 // OOM防止: メインスレッドで canvas を1つ使い回す
 let sharedCanvas: HTMLCanvasElement | null = null;
@@ -37,16 +33,6 @@ async function initializeDetector(): Promise<void> {
   }
 }
 
-// MediaPipeのcloseと再読み込み処理
-async function refreshDetector(): Promise<void> {
-  if (objectDetector) {
-    objectDetector.close();
-    objectDetector = null;
-  }
-  refreshEvaluator.reset();
-  await initializeDetector();
-}
-
 // 人物の検出
 export async function detectPeople(
   imageSource: GroupDetectionImageSource,
@@ -57,9 +43,6 @@ export async function detectPeople(
     await initializeDetector();
 
   if (!imageSource) throw new Error("No input data exists");
-
-  // クラス内部のフレームカウントをインクリメント
-  refreshEvaluator.incrementFrame();
 
   try {
     const result = objectDetector!.detect(imageSource);
@@ -102,13 +85,6 @@ export async function detectPeople(
 
     if (candidateDetectionsBuffer.length === 0) {
       outResult.length = 0;
-
-      // 検出数が 0 の場合も履歴に記録し、リフレッシュ判定を実施
-      refreshEvaluator.recordGroupCount(0);
-      if (refreshEvaluator.shouldRefresh()) {
-        await refreshDetector();
-      }
-
       return outResult;
     }
 
@@ -195,12 +171,6 @@ export async function detectPeople(
     outResult.length = 0;
     for (let i = 0; i < finalDetectionsBuffer.length; i++) {
       outResult.push(finalDetectionsBuffer[i]);
-    }
-
-    // 検出された人数（グループ数）を記録し、条件判定を満たせばリフレッシュ実行
-    refreshEvaluator.recordGroupCount(finalDetectionsBuffer.length);
-    if (refreshEvaluator.shouldRefresh()) {
-      await refreshDetector();
     }
 
     // 明示的な参照の解放
