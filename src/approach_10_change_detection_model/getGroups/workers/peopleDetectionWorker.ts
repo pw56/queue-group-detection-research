@@ -17,6 +17,9 @@ const MODEL_INPUT_SIZE = 640;
 let rawDetectionsBuffer: BoundingBoxRect[] = [];
 let finalPeopleBuffer: Person[] = [];
 
+// 再利用可能なテンソル用データバッファ (1 x 3 x 640 x 640)
+const float32DataBuffer = new Float32Array(3 * MODEL_INPUT_SIZE * MODEL_INPUT_SIZE);
+
 // オフスクリーンキャンバス（入力画像のリサイズ・テンソル変換用）
 const offscreenCanvas = new OffscreenCanvas(MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
 const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
@@ -47,15 +50,16 @@ function processDetections(
   if (boxes.length === 0) return finalPeopleBuffer;
 
   // 1. バウンディングボックスをX座標順で並び替える
-  boxes.sort((a, b) => a.originX - b.originX);
+  // 渡された配列の浅いコピーを作成して並び替える
+  const sortedBoxes = [...boxes].sort((a, b) => a.originX - b.originX);
 
   // 2〜4. 横方向の重なり判定とグループ化（ループ）
-  while (boxes.length > 0) {
-    const currentGroup: BoundingBoxRect[] = [boxes.shift()!];
+  while (sortedBoxes.length > 0) {
+    const currentGroup: BoundingBoxRect[] = [sortedBoxes.shift()!];
 
     let i = 0;
-    while (i < boxes.length) {
-      const candidate = boxes[i];
+    while (i < sortedBoxes.length) {
+      const candidate = sortedBoxes[i];
       let shouldGroup = false;
 
       for (let j = 0; j < currentGroup.length; j++) {
@@ -85,7 +89,7 @@ function processDetections(
       }
 
       if (shouldGroup) {
-        currentGroup.push(boxes.splice(i, 1)[0]);
+        currentGroup.push(sortedBoxes.splice(i, 1)[0]);
       } else {
         i++;
       }
@@ -154,21 +158,22 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
         const imageData = offscreenCtx.getImageData(0, 0, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
         const { data: pixels } = imageData;
 
-        // RGBプレーンに正規化変換
-        const red: number[] = [];
-        const green: number[] = [];
-        const blue: number[] = [];
-
-        for (let i = 0; i < pixels.length; i += 4) {
-          red.push(pixels[i] / 255.0);
-          green.push(pixels[i + 1] / 255.0);
-          blue.push(pixels[i + 2] / 255.0);
+        // RGBプレーンに正規化変換 (配列を生成せず固定TypedArrayへ直接書き込み)
+        const imageArea = MODEL_INPUT_SIZE * MODEL_INPUT_SIZE;
+        for (let i = 0, p = 0; i < pixels.length; i += 4, p++) {
+          float32DataBuffer[p] = pixels[i] / 255.0;                     // R
+          float32DataBuffer[imageArea + p] = pixels[i + 1] / 255.0;     // G
+          float32DataBuffer[imageArea * 2 + p] = pixels[i + 2] / 255.0; // B
         }
 
-        const float32Data = Float32Array.from([...red, ...green, ...blue]);
-        inputTensor = new ort.Tensor('float32', float32Data, [1, 3, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE]);
+        inputTensor = new ort.Tensor('float32', float32DataBuffer, [1, 3, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE]);
 
         results = await session.run({ images: inputTensor });
+        
+        // 推論完了後、不要になった入力テンソルは即座に開放
+        inputTensor.dispose();
+        inputTensor = null;
+
         const output = results[Object.keys(results)[0]];
         const outputData = output.data as Float32Array;
 
@@ -202,13 +207,15 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
       // ONNX Runtime テンソル明示的破棄
       if (inputTensor) {
         inputTensor.dispose();
+        inputTensor = null;
       }
       if (results) {
         for (const key in results) {
-          if (results[key]) {
+          if (Object.prototype.hasOwnProperty.call(results, key) && results[key]) {
             results[key].dispose();
           }
         }
+        results = null;
       }
       imageBitmap.close();
     }
