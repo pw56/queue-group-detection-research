@@ -26,7 +26,7 @@ interface OrientationGroupingOptions {
 // 閾値定数（大文字スタイル）
 const KEYPOINT_SCORE_THRESHOLD = 0.20;
 const DEFAULT_FACING_ANGLE_THRESHOLD = Math.PI / 4; // 45度
-const DEFAULT_MAX_DISTANCE_THRESHOLD = 250; // ピクセル
+const AVERAGE_BODY_SIZE_DISTANCE_MULTIPLE = 2;
 
 // メモリ再利用用の変数（スコープ外宣言によるOOM防止）
 let parentArray: number[] = [];
@@ -52,6 +52,68 @@ function union(i: number, j: number): void {
   if (rootI !== rootJ) {
     parentArray[rootI] = rootJ;
   }
+}
+
+/**
+ * 骨格座標から人物の体の大きさ（縦幅/全高）を推定する
+ * 頭頂・顔（鼻=0）から足首（15, 16）までの距離、またはバウンディングボックスの高さを使用
+ */
+function estimateBodySize(person: Person): number | null {
+  const keypoints = person.keypoints;
+  if (keypoints && keypoints.length > 16) {
+    const nose = keypoints[0];
+    const leftAnkle = keypoints[15];
+    const rightAnkle = keypoints[16];
+
+    const hasNose = nose && (nose.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD;
+    const leftAnkleValid = leftAnkle && (leftAnkle.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD;
+    const rightAnkleValid = rightAnkle && (rightAnkle.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD;
+
+    let ankleY: number | null = null;
+    if (leftAnkleValid && rightAnkleValid) {
+      ankleY = (leftAnkle.y + rightAnkle.y) / 2;
+    } else if (leftAnkleValid) {
+      ankleY = leftAnkle.y;
+    } else if (rightAnkleValid) {
+      ankleY = rightAnkle.y;
+    }
+
+    if (hasNose && ankleY !== null) {
+      const height = Math.abs(ankleY - nose.y);
+      if (height > 0) {
+        return height;
+      }
+    }
+  }
+
+  if (person.boundingBox && person.boundingBox.height > 0) {
+    return person.boundingBox.height;
+  }
+
+  return null;
+}
+
+/**
+ * 全員の骨格座標・バウンディングボックスから推定した体の大きさの平均の指定倍数の距離閾値を算出する
+ */
+function calculateAverageBodySizeThreshold(people: Person[]): number {
+  let totalSize = 0;
+  let count = 0;
+
+  for (let i = 0; i < people.length; i++) {
+    const size = estimateBodySize(people[i]);
+    if (size !== null) {
+      totalSize += size;
+      count++;
+    }
+  }
+
+  if (count === 0) {
+    return 250;
+  }
+
+  const averageSize = totalSize / count;
+  return averageSize * AVERAGE_BODY_SIZE_DISTANCE_MULTIPLE;
 }
 
 /**
@@ -115,10 +177,11 @@ function calculateCosTheta(
 export function isOrientedTogether(
   personA: Person,
   personB: Person,
-  options: OrientationGroupingOptions = {}
+  options: OrientationGroupingOptions = {},
+  fallbackMaxDistance?: number
 ): boolean {
   const facingAngleThresh = options.facingAngleThreshold ?? DEFAULT_FACING_ANGLE_THRESHOLD;
-  const maxDistThresh = options.maxDistanceThreshold ?? DEFAULT_MAX_DISTANCE_THRESHOLD;
+  const maxDistThresh = options.maxDistanceThreshold ?? fallbackMaxDistance ?? 250;
 
   const dirA = personA.direction
     ? { x: personA.direction.x, y: personA.direction.y }
@@ -187,6 +250,8 @@ export function groupByOrientation(
     return initialGroups;
   }
 
+  const dynamicMaxDistance = calculateAverageBodySizeThreshold(people);
+
   // メモリ領域の初期化・使い回し
   parentArray = Array.from({ length: people.length }, (_, i) => i);
   groupMap.clear();
@@ -212,7 +277,7 @@ export function groupByOrientation(
   for (let i = 0; i < people.length; i++) {
     for (let j = i + 1; j < people.length; j++) {
       if (find(i) !== find(j)) {
-        if (isOrientedTogether(people[i], people[j], options)) {
+        if (isOrientedTogether(people[i], people[j], options, dynamicMaxDistance)) {
           union(i, j);
         }
       }
