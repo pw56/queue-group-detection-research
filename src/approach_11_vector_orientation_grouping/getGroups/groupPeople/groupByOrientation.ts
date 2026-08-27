@@ -24,7 +24,7 @@ interface OrientationGroupingOptions {
 }
 
 // 閾値定数（大文字スタイル）
-const KEYPOINT_SCORE_THRESHOLD = 0.5;
+const KEYPOINT_SCORE_THRESHOLD = 0.20;
 const DEFAULT_FACING_ANGLE_THRESHOLD = Math.PI / 4; // 45度
 const DEFAULT_MAX_DISTANCE_THRESHOLD = 250; // ピクセル
 
