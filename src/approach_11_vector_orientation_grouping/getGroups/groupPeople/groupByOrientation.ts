@@ -1,17 +1,18 @@
 import { Groups, Person, Keypoint2D } from '../types';
+import { QueueLine } from './estimateQueueLine';
 
 /**
- * 【子アルゴリズム 3】体の向き・胴体四角形（Quad）相互認識ベースの前後グループ化アルゴリズム
+ * 【子アルゴリズム 3】体の向き・評価領域相互認識ベースの前後グループ化アルゴリズム
  *
  * 【LaTeX数式メモ】
  * 1. 胴体ベクトル (腰中点から肩中点への単位ベクトル):
  *    $$\boldsymbol{p}_{shoulder} = \frac{\boldsymbol{k}_{5} + \boldsymbol{k}_{6}}{2}, \quad \boldsymbol{p}_{hip} = \frac{\boldsymbol{k}_{11} + \boldsymbol{k}_{12}}{2}$$
  *    $$\boldsymbol{v}_{torso} = \frac{\boldsymbol{p}_{shoulder} - \boldsymbol{p}_{hip}}{\|\boldsymbol{p}_{shoulder} - \boldsymbol{p}_{hip}\|}$$
  *
- * 2. 個人の体サイズに基づく個別の扇形半径:
- *    $$R_A = H_A \times M_{\text{distance}}$$
+ * 2. 視界扇形領域 (Sector):
+ *    $$\text{Sector}(\boldsymbol{p}, \boldsymbol{v}, R, \theta) = \{ \boldsymbol{x} \mid \|\boldsymbol{x} - \boldsymbol{p}\| \le R \ \land \ \frac{(\boldsymbol{x} - \boldsymbol{p}) \cdot \boldsymbol{v}}{\|\boldsymbol{x} - \boldsymbol{p}\|} \ge \cos(\theta / 2) \}$$
  *
- * 3. 胴体四角形 (Torso Quad) と扇形 (Sector) の相互侵入判定 (AND条件):
+ * 3. 相互認識判定 (AND条件):
  *    $$\text{isSectorIntersectingQuad}(\text{Sector}_A, \text{Quad}_B) \quad \land \quad \text{isSectorIntersectingQuad}(\text{Sector}_B, \text{Quad}_A)$$
  */
 
@@ -20,12 +21,15 @@ interface OrientationGroupingOptions {
   fovAngle?: number;
   /** 個人の体サイズに乗算する距離倍率 (デフォルト: 1.2) */
   distanceMultiple?: number;
+  /** 人体の最小厚み比率 (身長に対する比率, デフォルト: 0.2) */
+  bodyThicknessRatio?: number;
 }
 
 // 閾値定数
-const KEYPOINT_SCORE_THRESHOLD = 0.10;
+const KEYPOINT_SCORE_THRESHOLD = 0.5;
 const DEFAULT_FOV_ANGLE = Math.PI / 2; // 90度（正面を中心として左右45度ずつ）
 const DEFAULT_DISTANCE_MULTIPLE = 1.2;
+const DEFAULT_BODY_THICKNESS_RATIO = 0.2; // 横向き時の最小厚み（対身長比）
 
 type Point = { x: number; y: number };
 
@@ -40,7 +44,7 @@ interface Sector {
 type TorsoQuad = [Point, Point, Point, Point];
 
 /**
- * 骨格座標から人物の体の大きさ（縦幅/全高）を算出する
+ * 人物の平均的な体の大きさ（縦幅/高さ）を算出する
  * 鼻から足首までの距離、またはバウンディングボックスの高さ
  */
 function estimatePersonBodySize(person: Person): number {
@@ -119,10 +123,16 @@ function getTorsoDirectionVector(keypoints?: Keypoint2D[]): Point | null {
 }
 
 /**
- * 人物の肩・腰のキーポイント（無ければBoundingBox）から胴体の四角形（TorsoQuad）を取得する
+ * 待機列のベクトルを利用して、横向きの人物の胴体四角形（TorsoQuad）に厚み補正を適用して取得する
  */
-function getTorsoQuad(person: Person): TorsoQuad | null {
+function getCorrectedTorsoQuad(
+  person: Person,
+  thicknessRatio: number
+): TorsoQuad | null {
   const keypoints = person.keypoints;
+  const bodySize = estimatePersonBodySize(person);
+  const minThickness = bodySize * thicknessRatio;
+
   if (keypoints && keypoints.length >= 13) {
     const ls = keypoints[5];
     const rs = keypoints[6];
@@ -135,12 +145,30 @@ function getTorsoQuad(person: Person): TorsoQuad | null {
     const validRH = rh && (rh.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD;
 
     if (validLS && validRS && validLH && validRH) {
-      return [
-        { x: ls.x, y: ls.y },
-        { x: rs.x, y: rs.y },
-        { x: rh.x, y: rh.y },
-        { x: lh.x, y: lh.y },
-      ];
+      let pLS = { x: ls.x, y: ls.y };
+      let pRS = { x: rs.x, y: rs.y };
+      let pRH = { x: rh.x, y: rh.y };
+      let pLH = { x: lh.x, y: lh.y };
+
+      const shoulderWidth = Math.hypot(pRS.x - pLS.x, pRS.y - pLS.y);
+      const hipWidth = Math.hypot(pRH.x - pLH.x, pRH.y - pLH.y);
+      const currentWidth = (shoulderWidth + hipWidth) / 2;
+
+      // 横向きで幅が厚み閾値より薄い場合、胴体直交方向に膨らませる（厚み補正）
+      if (currentWidth < minThickness) {
+        const dir = getTorsoDirectionVector(keypoints);
+        if (dir) {
+          const normal = { x: -dir.y, y: dir.x };
+          const expandAmount = (minThickness - currentWidth) / 2;
+
+          pLS = { x: pLS.x - normal.x * expandAmount, y: pLS.y - normal.y * expandAmount };
+          pRS = { x: pRS.x + normal.x * expandAmount, y: pRS.y + normal.y * expandAmount };
+          pRH = { x: pRH.x + normal.x * expandAmount, y: pRH.y + normal.y * expandAmount };
+          pLH = { x: pLH.x - normal.x * expandAmount, y: pLH.y - normal.y * expandAmount };
+        }
+      }
+
+      return [pLS, pRS, pRH, pLH];
     }
   }
 
@@ -253,6 +281,7 @@ export function isOrientedTogether(
 ): boolean {
   const fovAngle = options.fovAngle ?? DEFAULT_FOV_ANGLE;
   const distMultiple = options.distanceMultiple ?? DEFAULT_DISTANCE_MULTIPLE;
+  const thicknessRatio = options.bodyThicknessRatio ?? DEFAULT_BODY_THICKNESS_RATIO;
 
   const dirA = personA.direction
     ? { x: personA.direction.x, y: personA.direction.y }
@@ -264,8 +293,8 @@ export function isOrientedTogether(
 
   if (!dirA || !dirB) return false;
 
-  const quadA = getTorsoQuad(personA);
-  const quadB = getTorsoQuad(personB);
+  const quadA = getCorrectedTorsoQuad(personA, thicknessRatio);
+  const quadB = getCorrectedTorsoQuad(personB, thicknessRatio);
 
   if (!quadA || !quadB) return false;
 
@@ -290,10 +319,11 @@ export function isOrientedTogether(
 
 /**
  * 【子アルゴリズム 3 本体】
- * 既存グループ（Groups）を受け取り、前後の体の向き・胴体四角形の相互認識を考慮してグループごと統合したGroupsを返却する
+ * 既存グループ（Groups）と待機列情報（QueueLine）を受け取り、前後の体の向き・胴体四角形の相互認識を考慮してグループごと統合したGroupsを返却する
  */
 export function groupByOrientation(
   groups: Groups,
+  queueLine: QueueLine | null,
   options: OrientationGroupingOptions = {}
 ): Groups {
   if (!groups || groups.length <= 1) {
