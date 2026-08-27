@@ -30,17 +30,18 @@ latexmk -lualatex main.tex
 
 ### デモページのビルド
 デモ用のReactアプリをローカル環境で動かす場合は、各アプローチのディレクトリ（例: `src/approach_01_baseline`）に移動し、以下のコマンドを実行してください。
+  
+**注意:** 
+GitHub CodespacesではGitHub Codespaces自体のポートアクセス時のリダイレクトの仕様により、デモページでONNXファイルが読み込まれない場合がございます。
+ローカル環境でテストをされる場合はデスクトップ環境を推奨しております。
 
 ```bash
 # 対象のディレクトリへ移動
 cd src/approach_01_baseline
 
 # 依存パッケージのインストール
-npm install
+npm ci
 
 # ローカル開発サーバーの起動 (ブラウザで確認可能)
 npm run dev
-
-# 成果物のビルド (distディレクトリに出力)
-npm run build
 ```
