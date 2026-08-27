@@ -24,7 +24,7 @@ interface OrientationGroupingOptions {
 }
 
 // 閾値定数（大文字スタイル）
-const KEYPOINT_SCORE_THRESHOLD = 0.20;
+const KEYPOINT_SCORE_THRESHOLD = 0.10;
 const DEFAULT_FOV_ANGLE = Math.PI / 2; // 90度（正面を中心として左右45度ずつ）
 const AVERAGE_BODY_SIZE_DISTANCE_MULTIPLE = 2;
 
