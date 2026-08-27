@@ -8,8 +8,8 @@ import { Groups, Person, Keypoint2D } from '../types';
  *    $$\boldsymbol{p}_{shoulder} = \frac{\boldsymbol{k}_{5} + \boldsymbol{k}_{6}}{2}, \quad \boldsymbol{p}_{hip} = \frac{\boldsymbol{k}_{11} + \boldsymbol{k}_{12}}{2}$$
  *    $$\boldsymbol{v}_{torso} = \frac{\boldsymbol{p}_{shoulder} - \boldsymbol{p}_{hip}}{\|\boldsymbol{p}_{shoulder} - \boldsymbol{p}_{hip}\|}$$
  *
- * 2. 前方評価領域（扇形 Sector: 位置 $\boldsymbol{p}$, 向き $\boldsymbol{v}$, 半径 $R$, 開き角 $\theta$）の重なり判定:
- *    $$\text{Sector}_A \cap \text{Sector}_B \neq \emptyset$$
+ * 2. 相互認識（AND条件）によるグループ統合条件:
+ *    $$\text{isPointInSector}(\boldsymbol{p}_B, \text{Sector}_A) \quad \land \quad \text{isPointInSector}(\boldsymbol{p}_A, \text{Sector}_B)$$
  */
 
 interface OrientationGroupingOptions {
@@ -22,7 +22,7 @@ interface OrientationGroupingOptions {
 // 閾値定数（大文字スタイル）
 const KEYPOINT_SCORE_THRESHOLD = 0.10;
 const DEFAULT_FOV_ANGLE = Math.PI / 2; // 90度（正面を中心として左右45度ずつ）
-const AVERAGE_BODY_SIZE_DISTANCE_MULTIPLE = 2;
+const AVERAGE_BODY_SIZE_DISTANCE_MULTIPLE = 1.2;
 
 // メモリ再利用用の変数（スコープ外宣言によるOOM防止）
 let parentArray: number[] = [];
@@ -160,24 +160,14 @@ interface Sector {
   dir: Point;
   radius: number;
   fovAngle: number;
-  leftRay: Point;
-  rightRay: Point;
 }
 
 function createSector(origin: Point, dir: Point, radius: number, fovAngle: number): Sector {
-  const baseAngle = Math.atan2(dir.y, dir.x);
-  const halfFov = fovAngle / 2;
-
-  const leftAngle = baseAngle - halfFov;
-  const rightAngle = baseAngle + halfFov;
-
   return {
     origin,
     dir,
     radius,
     fovAngle,
-    leftRay: { x: Math.cos(leftAngle), y: Math.sin(leftAngle) },
-    rightRay: { x: Math.cos(rightAngle), y: Math.sin(rightAngle) },
   };
 }
 
@@ -199,106 +189,8 @@ function isPointInSector(p: Point, sector: Sector): boolean {
   return cosVal >= Math.cos(sector.fovAngle / 2);
 }
 
-/** 線分 p1-p2 と 線分 q1-q2 が交差するか */
-function doSegmentsIntersect(p1: Point, p2: Point, q1: Point, q2: Point): boolean {
-  const ccw = (a: Point, b: Point, c: Point) => {
-    return (c.y - a.y) * (b.x - a.x) > (b.y - a.y) * (c.x - a.x);
-  };
-  return (
-    ccw(p1, q1, q2) !== ccw(p2, q1, q2) &&
-    ccw(p1, p2, q1) !== ccw(p1, p2, q2)
-  );
-}
-
-/** 線分 p1-p2 と 円弧 (center, radius, startAngle, endAngle) が交差するか */
-function doesSegmentIntersectArc(p1: Point, p2: Point, sector: Sector): boolean {
-  const dx = p2.x - p1.x;
-  const dy = p2.y - p1.y;
-  const fx = p1.x - sector.origin.x;
-  const fy = p1.y - sector.origin.y;
-
-  const a = dx * dx + dy * dy;
-  const b = 2 * (fx * dx + fy * dy);
-  const c = fx * fx + fy * fy - sector.radius * sector.radius;
-
-  let discriminant = b * b - 4 * a * c;
-  if (discriminant < 0) {
-    return false;
-  }
-
-  discriminant = Math.sqrt(discriminant);
-  const t1 = (-b - discriminant) / (2 * a);
-  const t2 = (-b + discriminant) / (2 * a);
-
-  const checkIntersectionPoint = (t: number): boolean => {
-    if (t < 0 || t > 1) return false;
-    const ix = p1.x + t * dx;
-    const iy = p1.y + t * dy;
-    return isPointInSector({ x: ix, y: iy }, sector);
-  };
-
-  return checkIntersectionPoint(t1) || checkIntersectionPoint(t2);
-}
-
-/** 2つの扇形領域 (Sector A, Sector B) がオーバーラップ（重なり）しているか */
-function doSectorsOverlap(sectorA: Sector, sectorB: Sector): boolean {
-  // 1. 原点同士の距離が、両領域の半径の和を超えていれば絶対交差しない
-  const distSq =
-    Math.pow(sectorA.origin.x - sectorB.origin.x, 2) +
-    Math.pow(sectorA.origin.y - sectorB.origin.y, 2);
-  const maxRadius = sectorA.radius + sectorB.radius;
-  if (distSq > maxRadius * maxRadius) {
-    return false;
-  }
-
-  // 2. 一方の起点（頂点）が他方の扇形領域内に含まれているか
-  if (isPointInSector(sectorA.origin, sectorB) || isPointInSector(sectorB.origin, sectorA)) {
-    return true;
-  }
-
-  // AとBそれぞれのレイ端点
-  const aLeft = {
-    x: sectorA.origin.x + sectorA.leftRay.x * sectorA.radius,
-    y: sectorA.origin.y + sectorA.leftRay.y * sectorA.radius,
-  };
-  const aRight = {
-    x: sectorA.origin.x + sectorA.rightRay.x * sectorA.radius,
-    y: sectorA.origin.y + sectorA.rightRay.y * sectorA.radius,
-  };
-  const bLeft = {
-    x: sectorB.origin.x + sectorB.leftRay.x * sectorB.radius,
-    y: sectorB.origin.y + sectorB.leftRay.y * sectorB.radius,
-  };
-  const bRight = {
-    x: sectorB.origin.x + sectorB.rightRay.x * sectorB.radius,
-    y: sectorB.origin.y + sectorB.rightRay.y * sectorB.radius,
-  };
-
-  // 3. 双方のレイ（側辺の線分）同士の交差判定
-  if (
-    doSegmentsIntersect(sectorA.origin, aLeft, sectorB.origin, bLeft) ||
-    doSegmentsIntersect(sectorA.origin, aLeft, sectorB.origin, bRight) ||
-    doSegmentsIntersect(sectorA.origin, aRight, sectorB.origin, bLeft) ||
-    doSegmentsIntersect(sectorA.origin, aRight, sectorB.origin, bRight)
-  ) {
-    return true;
-  }
-
-  // 4. 一方のレイ（側辺）と他方の円弧（前方先端弧）の交差判定
-  if (
-    doesSegmentIntersectArc(sectorA.origin, aLeft, sectorB) ||
-    doesSegmentIntersectArc(sectorA.origin, aRight, sectorB) ||
-    doesSegmentIntersectArc(sectorB.origin, bLeft, sectorA) ||
-    doesSegmentIntersectArc(sectorB.origin, bRight, sectorA)
-  ) {
-    return true;
-  }
-
-  return false;
-}
-
 /**
- * 隣り合う前後の人物判定および体の前方の評価領域（視野・視界領域）の重なり判定を行う
+ * 隣り合う前後の人物判定および体の前方の評価領域（視野・視界領域）の相互認識判定を行う
  */
 export function isOrientedTogether(
   personA: Person,
@@ -335,8 +227,8 @@ export function isOrientedTogether(
   const sectorA = createSector(posA, dirA, maxDistThresh, fovAngle);
   const sectorB = createSector(posB, dirB, maxDistThresh, fovAngle);
 
-  // 2つの扇形領域が幾何学的に重なっているか判定
-  return doSectorsOverlap(sectorA, sectorB);
+  // 相互認識（Aの領域内にBの位置が存在し、かつBの領域内にAの位置が存在する）
+  return isPointInSector(posB, sectorA) && isPointInSector(posA, sectorB);
 }
 
 /**
@@ -379,7 +271,7 @@ export function groupByOrientation(
     }
   }
 
-  // 2. 横並びの誰か1人でも前または後ろの列の人と体の前方の評価領域が重なっていたら連れ（グループ）判定
+  // 2. 横並びの誰か1人でも前または後ろの列の人と体の前方の評価領域が相互認識されていたら連れ（グループ）判定
   for (let i = 0; i < people.length; i++) {
     for (let j = i + 1; j < people.length; j++) {
       if (find(i) !== find(j)) {

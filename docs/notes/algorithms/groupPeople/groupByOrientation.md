@@ -1,6 +1,6 @@
 # 3. 体の向きベースの前後グループ化アルゴリズム (groupByOrientation)
 
-本モジュールは、各人物の体の向き（肩・腰の骨格座標）に基づき、前面に伸びる**評価領域（扇形視界領域／Sector）同士の空間的オーバーラップ（交差・重複）**を幾何学計算で評価し、前後列を跨ぐ同一グループ（互いに向き合っているカップルや会話中のグループなど）を判定する子アルゴリズムです。
+本モジュールは、各人物の体の向き（肩・腰の骨格座標）に基づき、前面に伸ばした**扇形評価領域（Sector）同士の相互認識（双方の視野領域内への位置侵入）**を評価し、前後列を跨ぐ同一グループ（互いに向き合って会話しているペアや連れなど）を判定する子アルゴリズムです。
 
 ---
 
@@ -16,19 +16,22 @@ $$\boldsymbol{p}_{\text{shoulder}} = \frac{\boldsymbol{k}_5 + \boldsymbol{k}_6}{
 $$\boldsymbol{v}_{\text{torso}} = \frac{\boldsymbol{p}_{\text{shoulder}} - \boldsymbol{p}_{\text{hip}}}{\|\boldsymbol{p}_{\text{shoulder}} - \boldsymbol{p}_{\text{hip}}\|}$$
 
 ### (2) 動的到達距離制限（身体サイズの平均）
-検出された全人物の縦幅の平均値 $\bar{H}$ に係数 $M=2$ を掛けた動的半径上限 $R_{\text{max}}$ を定義します：
+検出された全人物の縦幅の平均値 $\bar{H}$ に定数係数 $M = 1.2$ (`AVERAGE_BODY_SIZE_DISTANCE_MULTIPLE`) を掛けた動的領域半径 $R_{\text{max}}$ を定義します：
 
 $$R_{\text{max}} = M \cdot \bar{H}$$
 
-### (3) 扇形評価領域 (Sector) の構成
-人物 $A$ の領域 $\text{Sector}_A$ は、起点 $\boldsymbol{p}_A$、方向 $\boldsymbol{v}_{\text{torso}, A}$、半径 $R_{\text{max}}$、開き角 $\theta_{\text{FOV}}$ によって形作られる2D平面上の扇形図形です。
+### (3) 扇形評価領域 (Sector) への点包含判定
+人物 $A$（位置 $\boldsymbol{p}_A$, 胴体向き $\boldsymbol{v}_{\text{torso}, A}$）の扇形領域内に、人物 $B$ の位置 $\boldsymbol{p}_B$ が含まれるかの判定関数 $\text{isPointInSector}(\boldsymbol{p}_B, \text{Sector}_A)$ を定義します。
 
-### (4) 2つの扇形領域の幾何的オーバーラップ判定
-$\text{Sector}_A \cap \text{Sector}_B \neq \emptyset$ であるかを以下の4条件の論理和（いずれか1つでも満たせば交差）によって算出します：
+相対位置ベクトル $\boldsymbol{r}_{AB} = \boldsymbol{p}_B - \boldsymbol{p}_A$、およびその正規化ベクトル $\hat{\boldsymbol{r}}_{AB} = \frac{\boldsymbol{r}_{AB}}{\|\boldsymbol{r}_{AB}\|}$ とするとき：
 
-1. **頂点包摂:** $\boldsymbol{p}_A \in \text{Sector}_B \quad \lor \quad \boldsymbol{p}_B \in \text{Sector}_A$
-2. **レイ（側辺）交差:** $\text{Segment}_A \cap \text{Segment}_B \neq \emptyset$
-3. **レイと円弧の交差:** $\text{Segment}_A \cap \text{Arc}_B \neq \emptyset \quad \lor \quad \text{Segment}_B \cap \text{Arc}_A \neq \emptyset$
-4. **円弧同士の交差:** $\text{Arc}_A \cap \text{Arc}_B \neq \emptyset$
+$$\text{isPointInSector}(\boldsymbol{p}_B, \text{Sector}_A) = \begin{cases} \text{true} & (\|\boldsymbol{r}_{AB}\| \le R_{\text{max}} \quad \land \quad \boldsymbol{v}_{\text{torso}, A} \cdot \hat{\boldsymbol{r}}_{AB} \ge \cos\left(\frac{\theta_{\text{FOV}}}{2}\right)) \\ \text{false} & (\text{otherwise}) \end{cases}$$
 
-非相交集合データ構造 (Union-Find) を適用し、既存の距離ベース横並びグループ構造へ本判定結果を統合して最終的な `Groups` を構成します。
+※ $\theta_{\text{FOV}}$ は前方評価領域の開き角 (`DEFAULT_FOV_ANGLE` = $\frac{\pi}{2}$ ラジアン / 90度)。
+
+### (4) 相互認識による統合判定条件 (AND条件)
+人物 $A$ と人物 $B$ について、**互いの扇形評価領域内に相手の位置座標が存在する場合（AND条件 / 相互侵入）**にのみ、同一グループとして結合します：
+
+$$\text{isOrientedTogether}(A, B) = \text{isPointInSector}(\boldsymbol{p}_B, \text{Sector}_A) \quad \land \quad \text{isPointInSector}(\boldsymbol{p}_A, \text{Sector}_B)$$
+
+一方的な通過・無関係な人物の領域掠れによる連続結合（過剰な統合）を抑制し、相互の向き合い・会話関係を正確に抽出します。非相交集合データ構造 (Union-Find) を適用し、既存の横並びグループ構造へ統合して最終的な `Groups` を返却します。
