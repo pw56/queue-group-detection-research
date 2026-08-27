@@ -123,6 +123,24 @@ function getTorsoDirectionVector(keypoints?: Keypoint2D[]): Point | null {
 }
 
 /**
+ * 待機列方向（または画面進行方向）に対して人物が正しく前を向いているか判定する
+ */
+function isFacingForward(dir: Point, queueLine: QueueLine | null): boolean {
+  if (queueLine) {
+    const qDir = queueLine.direction;
+    const qLen = Math.hypot(qDir.x, qDir.y);
+    if (qLen > 0) {
+      const uQ = { x: qDir.x / qLen, y: qDir.y / qLen };
+      // 待機列方向との内積（cos θ）。角度約45度以内 (cos >= 0.707) を「前向き」と定義
+      const cosVal = dir.x * uQ.x + dir.y * uQ.y;
+      return cosVal >= 0.707;
+    }
+  }
+  // QueueLineがない場合のフォールバック（画面上方向 y < 0 を前方と仮定）
+  return dir.y < -0.5;
+}
+
+/**
  * 待機列のベクトルを利用して、横向きの人物の胴体四角形（TorsoQuad）に本来の大きさ（逆投影・幾何補正）を適用して取得する
  */
 function getCorrectedTorsoQuad(
@@ -326,6 +344,13 @@ export function isOrientedTogether(
     : getTorsoDirectionVector(personB.keypoints);
 
   if (!dirA || !dirB) return false;
+
+  // 双方とも正しく「前」を向いている場合は、向きによるグループ誤判定を防ぐためグループ検出を行わない
+  const isAForward = isFacingForward(dirA, queueLine);
+  const isBForward = isFacingForward(dirB, queueLine);
+  if (isAForward && isBForward) {
+    return false;
+  }
 
   const quadA = getCorrectedTorsoQuad(personA, queueLine, thicknessRatio);
   const quadB = getCorrectedTorsoQuad(personB, queueLine, thicknessRatio);
