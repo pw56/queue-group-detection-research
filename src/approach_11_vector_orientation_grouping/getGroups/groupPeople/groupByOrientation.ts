@@ -1,60 +1,49 @@
 import { Groups, Person, Keypoint2D } from '../types';
 
 /**
- * 【子アルゴリズム 3】胴体の向きベースの前後グループ化アルゴリズム
+ * 【子アルゴリズム 3】体の向き・胴体四角形（Quad）相互認識ベースの前後グループ化アルゴリズム
  *
  * 【LaTeX数式メモ】
- * 1. 胴体ベクトルの定義 (両肩・両腰の中点ベクトル):
+ * 1. 胴体ベクトル (腰中点から肩中点への単位ベクトル):
  *    $$\boldsymbol{p}_{shoulder} = \frac{\boldsymbol{k}_{5} + \boldsymbol{k}_{6}}{2}, \quad \boldsymbol{p}_{hip} = \frac{\boldsymbol{k}_{11} + \boldsymbol{k}_{12}}{2}$$
  *    $$\boldsymbol{v}_{torso} = \frac{\boldsymbol{p}_{shoulder} - \boldsymbol{p}_{hip}}{\|\boldsymbol{p}_{shoulder} - \boldsymbol{p}_{hip}\|}$$
  *
- * 2. 相互認識（AND条件）によるグループ統合条件:
- *    $$\text{isPointInSector}(\boldsymbol{p}_B, \text{Sector}_A) \quad \land \quad \text{isPointInSector}(\boldsymbol{p}_A, \text{Sector}_B)$$
+ * 2. 個人の体サイズに基づく個別の扇形半径:
+ *    $$R_A = H_A \times M_{\text{distance}}$$
+ *
+ * 3. 胴体四角形 (Torso Quad) と扇形 (Sector) の相互侵入判定 (AND条件):
+ *    $$\text{isSectorIntersectingQuad}(\text{Sector}_A, \text{Quad}_B) \quad \land \quad \text{isSectorIntersectingQuad}(\text{Sector}_B, \text{Quad}_A)$$
  */
 
 interface OrientationGroupingOptions {
   /** 前方評価領域（視野角）の開き角 (ラジアン, デフォルト: 90度 = ±45度) */
   fovAngle?: number;
-  /** 前後と判定する距離の上限 (ピクセル) */
-  maxDistanceThreshold?: number;
+  /** 個人の体サイズに乗算する距離倍率 (デフォルト: 1.2) */
+  distanceMultiple?: number;
 }
 
-// 閾値定数（大文字スタイル）
+// 閾値定数
 const KEYPOINT_SCORE_THRESHOLD = 0.10;
 const DEFAULT_FOV_ANGLE = Math.PI / 2; // 90度（正面を中心として左右45度ずつ）
-const AVERAGE_BODY_SIZE_DISTANCE_MULTIPLE = 1.2;
+const DEFAULT_DISTANCE_MULTIPLE = 1.2;
 
-// メモリ再利用用の変数（スコープ外宣言によるOOM防止）
-let parentArray: number[] = [];
-const groupMap = new Map<number, Person[]>();
+type Point = { x: number; y: number };
 
-function find(i: number): number {
-  let root = i;
-  while (root !== parentArray[root]) {
-    root = parentArray[root];
-  }
-  let curr = i;
-  while (curr !== root) {
-    const nxt = parentArray[curr];
-    parentArray[curr] = root;
-    curr = nxt;
-  }
-  return root;
+interface Sector {
+  origin: Point;
+  dir: Point;
+  radius: number;
+  fovAngle: number;
 }
 
-function union(i: number, j: number): void {
-  const rootI = find(i);
-  const rootJ = find(j);
-  if (rootI !== rootJ) {
-    parentArray[rootI] = rootJ;
-  }
-}
+/** 胴体の4頂点（左肩、右肩、右腰、左腰）で作られる四角形 */
+type TorsoQuad = [Point, Point, Point, Point];
 
 /**
- * 骨格座標から人物の体の大きさ（縦幅/全高）を推定する
- * 頭頂・顔（鼻=0）から足首（15, 16）までの距離、またはバウンディングボックスの高さを使用
+ * 骨格座標から人物の体の大きさ（縦幅/全高）を算出する
+ * 鼻から足首までの距離、またはバウンディングボックスの高さ
  */
-function estimateBodySize(person: Person): number | null {
+function estimatePersonBodySize(person: Person): number {
   const keypoints = person.keypoints;
   if (keypoints && keypoints.length > 16) {
     const nose = keypoints[0];
@@ -86,37 +75,13 @@ function estimateBodySize(person: Person): number | null {
     return person.boundingBox.height;
   }
 
-  return null;
-}
-
-/**
- * 全員の骨格座標・バウンディングボックスから推定した体の大きさの平均の指定倍数の距離閾値を算出する
- */
-function calculateAverageBodySizeThreshold(people: Person[]): number {
-  let totalSize = 0;
-  let count = 0;
-
-  for (let i = 0; i < people.length; i++) {
-    const size = estimateBodySize(people[i]);
-    if (size !== null) {
-      totalSize += size;
-      count++;
-    }
-  }
-
-  if (count === 0) {
-    return 250;
-  }
-
-  const averageSize = totalSize / count;
-  return averageSize * AVERAGE_BODY_SIZE_DISTANCE_MULTIPLE;
+  return 200; // フォールバックデフォルト値
 }
 
 /**
  * 胴体の向き（両肩・両腰のキーポイント）から2D平面での方向ベクトルを取得する
- * ※スマホ操作等を考慮し、顔ではなく胴体のキーポイント(5,6,11,12)を使用
  */
-function getTorsoDirectionVector(keypoints?: Keypoint2D[]): { x: number; y: number } | null {
+function getTorsoDirectionVector(keypoints?: Keypoint2D[]): Point | null {
   if (!keypoints || keypoints.length < 13) {
     return null;
   }
@@ -153,22 +118,44 @@ function getTorsoDirectionVector(keypoints?: Keypoint2D[]): { x: number; y: numb
   return null;
 }
 
-type Point = { x: number; y: number };
+/**
+ * 人物の肩・腰のキーポイント（無ければBoundingBox）から胴体の四角形（TorsoQuad）を取得する
+ */
+function getTorsoQuad(person: Person): TorsoQuad | null {
+  const keypoints = person.keypoints;
+  if (keypoints && keypoints.length >= 13) {
+    const ls = keypoints[5];
+    const rs = keypoints[6];
+    const lh = keypoints[11];
+    const rh = keypoints[12];
 
-interface Sector {
-  origin: Point;
-  dir: Point;
-  radius: number;
-  fovAngle: number;
-}
+    const validLS = ls && (ls.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD;
+    const validRS = rs && (rs.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD;
+    const validLH = lh && (lh.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD;
+    const validRH = rh && (rh.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD;
 
-function createSector(origin: Point, dir: Point, radius: number, fovAngle: number): Sector {
-  return {
-    origin,
-    dir,
-    radius,
-    fovAngle,
-  };
+    if (validLS && validRS && validLH && validRH) {
+      return [
+        { x: ls.x, y: ls.y },
+        { x: rs.x, y: rs.y },
+        { x: rh.x, y: rh.y },
+        { x: lh.x, y: lh.y },
+      ];
+    }
+  }
+
+  // 骨格が取れない場合はBoundingBoxから四角形を代替作成
+  const box = person.boundingBox;
+  if (box) {
+    return [
+      { x: box.originX, y: box.originY },
+      { x: box.originX + box.width, y: box.originY },
+      { x: box.originX + box.width, y: box.originY + box.height },
+      { x: box.originX, y: box.originY + box.height },
+    ];
+  }
+
+  return null;
 }
 
 /** 任意の点 p が扇形領域内に含まれるか */
@@ -189,17 +176,83 @@ function isPointInSector(p: Point, sector: Sector): boolean {
   return cosVal >= Math.cos(sector.fovAngle / 2);
 }
 
+/** 2つの線分 (p1-p2 と p3-p4) が交差しているか */
+function doSegmentsIntersect(p1: Point, p2: Point, p3: Point, p4: Point): boolean {
+  const ccw = (a: Point, b: Point, c: Point) => {
+    return (c.y - a.y) * (b.x - a.x) > (b.y - a.y) * (c.x - a.x);
+  };
+  return ccw(p1, p3, p4) !== ccw(p2, p3, p4) && ccw(p1, p2, p3) !== ccw(p1, p2, p4);
+}
+
+/** 扇形領域 (Sector) と 胴体四角形 (TorsoQuad) が重なっているか */
+function isSectorIntersectingQuad(sector: Sector, quad: TorsoQuad): boolean {
+  // 1. 四角形の4頂点のいずれかが扇形内に入っているか
+  for (let i = 0; i < 4; i++) {
+    if (isPointInSector(quad[i], sector)) {
+      return true;
+    }
+  }
+
+  // 2. 扇形の中心点が四角形内に入っているか (簡単な点・多角形包含判定)
+  let inside = false;
+  for (let i = 0, j = 3; i < 4; j = i++) {
+    const xi = quad[i].x, yi = quad[i].y;
+    const xj = quad[j].x, yj = quad[j].y;
+    const intersect =
+      yi > sector.origin.y !== yj > sector.origin.y &&
+      sector.origin.x < ((xj - xi) * (sector.origin.y - yi)) / (yj - yi) + xi;
+    if (intersect) inside = !inside;
+  }
+  if (inside) return true;
+
+  // 3. 扇形の境界線分（左右レイ）と四角形の4辺が交差しているか
+  const halfFov = sector.fovAngle / 2;
+  const cos = Math.cos(halfFov);
+  const sin = Math.sin(halfFov);
+
+  // 左境界ベクトルと右境界ベクトル
+  const leftDir = {
+    x: sector.dir.x * cos - sector.dir.y * sin,
+    y: sector.dir.x * sin + sector.dir.y * cos,
+  };
+  const rightDir = {
+    x: sector.dir.x * cos + sector.dir.y * sin,
+    y: -sector.dir.x * sin + sector.dir.y * cos,
+  };
+
+  const leftRayEnd = {
+    x: sector.origin.x + leftDir.x * sector.radius,
+    y: sector.origin.y + leftDir.y * sector.radius,
+  };
+  const rightRayEnd = {
+    x: sector.origin.x + rightDir.x * sector.radius,
+    y: sector.origin.y + rightDir.y * sector.radius,
+  };
+
+  for (let i = 0; i < 4; i++) {
+    const q1 = quad[i];
+    const q2 = quad[(i + 1) % 4];
+    if (
+      doSegmentsIntersect(sector.origin, leftRayEnd, q1, q2) ||
+      doSegmentsIntersect(sector.origin, rightRayEnd, q1, q2)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 /**
- * 隣り合う前後の人物判定および体の前方の評価領域（視野・視界領域）の相互認識判定を行う
+ * 2人の人物が互いの扇形評価領域と胴体四角形で相互認識（AND条件）されているかをチェック
  */
 export function isOrientedTogether(
   personA: Person,
   personB: Person,
-  options: OrientationGroupingOptions = {},
-  fallbackMaxDistance?: number
+  options: OrientationGroupingOptions = {}
 ): boolean {
   const fovAngle = options.fovAngle ?? DEFAULT_FOV_ANGLE;
-  const maxDistThresh = options.maxDistanceThreshold ?? fallbackMaxDistance ?? 250;
+  const distMultiple = options.distanceMultiple ?? DEFAULT_DISTANCE_MULTIPLE;
 
   const dirA = personA.direction
     ? { x: personA.direction.x, y: personA.direction.y }
@@ -209,93 +262,101 @@ export function isOrientedTogether(
     ? { x: personB.direction.x, y: personB.direction.y }
     : getTorsoDirectionVector(personB.keypoints);
 
-  if (!dirA || !dirB) {
-    return false;
-  }
+  if (!dirA || !dirB) return false;
+
+  const quadA = getTorsoQuad(personA);
+  const quadB = getTorsoQuad(personB);
+
+  if (!quadA || !quadB) return false;
 
   const boxA = personA.boundingBox;
   const boxB = personB.boundingBox;
 
-  if (!boxA || !boxB) {
-    return false;
-  }
+  if (!boxA || !boxB) return false;
 
   const posA = { x: boxA.originX + boxA.width / 2, y: boxA.originY + boxA.height / 2 };
   const posB = { x: boxB.originX + boxB.width / 2, y: boxB.originY + boxB.height / 2 };
 
-  // 人物AおよびBの扇形評価領域を作成
-  const sectorA = createSector(posA, dirA, maxDistThresh, fovAngle);
-  const sectorB = createSector(posB, dirB, maxDistThresh, fovAngle);
+  // 各自の身体サイズに基づく個別半径の計算
+  const sizeA = estimatePersonBodySize(personA);
+  const sizeB = estimatePersonBodySize(personB);
 
-  // 相互認識（Aの領域内にBの位置が存在し、かつBの領域内にAの位置が存在する）
-  return isPointInSector(posB, sectorA) && isPointInSector(posA, sectorB);
+  const sectorA: Sector = { origin: posA, dir: dirA, radius: sizeA * distMultiple, fovAngle };
+  const sectorB: Sector = { origin: posB, dir: dirB, radius: sizeB * distMultiple, fovAngle };
+
+  // Aの扇形がBの胴体四角形と交差し、かつBの扇形がAの胴体四角形と交差する (AND条件)
+  return isSectorIntersectingQuad(sectorA, quadB) && isSectorIntersectingQuad(sectorB, quadA);
 }
 
 /**
  * 【子アルゴリズム 3 本体】
- * 既存グループ（距離・位置ベース）を受け取り、前後の体の向きを考慮して統合したGroupsを返却する
+ * 既存グループ（Groups）を受け取り、前後の体の向き・胴体四角形の相互認識を考慮してグループごと統合したGroupsを返却する
  */
 export function groupByOrientation(
-  people: Person[],
-  initialGroups: Groups,
+  groups: Groups,
   options: OrientationGroupingOptions = {}
 ): Groups {
-  if (!people || people.length === 0) {
-    return [];
+  if (!groups || groups.length <= 1) {
+    return groups;
   }
 
-  if (initialGroups.length <= 1) {
-    return initialGroups;
+  // Union-Find 用親配列（グループ数で初期化）
+  const parent = Array.from({ length: groups.length }, (_, i) => i);
+
+  function find(i: number): number {
+    let root = i;
+    while (root !== parent[root]) root = parent[root];
+    let curr = i;
+    while (curr !== root) {
+      const nxt = parent[curr];
+      parent[curr] = root;
+      curr = nxt;
+    }
+    return root;
   }
 
-  const dynamicMaxDistance = calculateAverageBodySizeThreshold(people);
-
-  // メモリ領域の初期化・使い回し
-  parentArray = Array.from({ length: people.length }, (_, i) => i);
-  groupMap.clear();
-
-  const personToIndexMap = new Map<Person, number>();
-  for (let i = 0; i < people.length; i++) {
-    personToIndexMap.set(people[i], i);
-  }
-
-  // 1. 初期距離グループの構造をUnion-Findに反映
-  for (let g = 0; g < initialGroups.length; g++) {
-    const group = initialGroups[g];
-    if (group.length > 1) {
-      const firstIdx = personToIndexMap.get(group[0])!;
-      for (let k = 1; k < group.length; k++) {
-        const targetIdx = personToIndexMap.get(group[k])!;
-        union(firstIdx, targetIdx);
-      }
+  function union(i: number, j: number): void {
+    const rootI = find(i);
+    const rootJ = find(j);
+    if (rootI !== rootJ) {
+      parent[rootI] = rootJ;
     }
   }
 
-  // 2. 横並びの誰か1人でも前または後ろの列の人と体の前方の評価領域が相互認識されていたら連れ（グループ）判定
-  for (let i = 0; i < people.length; i++) {
-    for (let j = i + 1; j < people.length; j++) {
-      if (find(i) !== find(j)) {
-        if (isOrientedTogether(people[i], people[j], options, dynamicMaxDistance)) {
-          union(i, j);
+  // 別々のグループ間でメンバー同士の相互認識判定を実行
+  for (let g1 = 0; g1 < groups.length; g1++) {
+    for (let g2 = g1 + 1; g2 < groups.length; g2++) {
+      if (find(g1) === find(g2)) continue;
+
+      let shouldMerge = false;
+      const group1 = groups[g1];
+      const group2 = groups[g2];
+
+      for (let i = 0; i < group1.length; i++) {
+        for (let j = 0; j < group2.length; j++) {
+          if (isOrientedTogether(group1[i], group2[j], options)) {
+            shouldMerge = true;
+            break;
+          }
         }
+        if (shouldMerge) break;
+      }
+
+      if (shouldMerge) {
+        union(g1, g2);
       }
     }
   }
 
-  // 3. 結果の集約
-  for (let i = 0; i < people.length; i++) {
-    const root = find(i);
-    if (!groupMap.has(root)) {
-      groupMap.set(root, []);
+  // 結果の集約（グループ単位で結合）
+  const mergedGroupMap = new Map<number, Person[]>();
+  for (let g = 0; g < groups.length; g++) {
+    const root = find(g);
+    if (!mergedGroupMap.has(root)) {
+      mergedGroupMap.set(root, []);
     }
-    groupMap.get(root)!.push(people[i]);
+    mergedGroupMap.get(root)!.push(...groups[g]);
   }
 
-  const result = Array.from(groupMap.values());
-
-  // メモリ解放
-  parentArray = [];
-  groupMap.clear();
-
-  return result;
+  return Array.from(mergedGroupMap.values());
 }
