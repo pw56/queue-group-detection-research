@@ -1,6 +1,6 @@
 # 3. 体の向きベースの前後グループ化アルゴリズム (groupByOrientation)
 
-本モジュールは、スマホ操作等を考慮して顔（頭部）ではなく**胴体の向き**を基準とし、各人物の体の前方に形成される評価領域（扇形視界領域／FOV）の幾何学的な重なり（侵入関係）を評価することで、前後列を跨ぐグループ（壁に寄って会話するカップル、後から合流した連れなど）を判定する子アルゴリズムです。
+本モジュールは、各人物の体の向き（肩・腰の骨格座標）に基づき、前面に伸びる**評価領域（扇形視界領域／Sector）同士の空間的オーバーラップ（交差・重複）**を幾何学計算で評価し、前後列を跨ぐ同一グループ（互いに向き合っているカップルや会話中のグループなど）を判定する子アルゴリズムです。
 
 ---
 
@@ -16,22 +16,19 @@ $$\boldsymbol{p}_{\text{shoulder}} = \frac{\boldsymbol{k}_5 + \boldsymbol{k}_6}{
 $$\boldsymbol{v}_{\text{torso}} = \frac{\boldsymbol{p}_{\text{shoulder}} - \boldsymbol{p}_{\text{hip}}}{\|\boldsymbol{p}_{\text{shoulder}} - \boldsymbol{p}_{\text{hip}}\|}$$
 
 ### (2) 動的到達距離制限（身体サイズの平均）
-検出された全人物の縦幅（頭部〜足首間またはバウンディングボックスの高さ）の平均値 $\bar{H}$ に係数 `AVERAGE_BODY_SIZE_DISTANCE_MULTIPLE` ($M=2$) を掛けた動的距離上限 $R_{\text{max}}$ を定義します：
+検出された全人物の縦幅の平均値 $\bar{H}$ に係数 $M=2$ を掛けた動的半径上限 $R_{\text{max}}$ を定義します：
 
 $$R_{\text{max}} = M \cdot \bar{H}$$
 
-### (3) 前方評価領域（扇形 / FOV）の包含判定
-人物 $A$（位置 $\boldsymbol{p}_A$, 胴体向き $\boldsymbol{v}_{\text{torso}, A}$）の評価領域内に、人物 $B$（位置 $\boldsymbol{p}_B$）が含まれているかの判定関数 $\text{isPointInFOV}(A, \boldsymbol{p}_B)$ を定義します。
+### (3) 扇形評価領域 (Sector) の構成
+人物 $A$ の領域 $\text{Sector}_A$ は、起点 $\boldsymbol{p}_A$、方向 $\boldsymbol{v}_{\text{torso}, A}$、半径 $R_{\text{max}}$、開き角 $\theta_{\text{FOV}}$ によって形作られる2D平面上の扇形図形です。
 
-相対位置ベクトル $\boldsymbol{r}_{AB} = \boldsymbol{p}_B - \boldsymbol{p}_A$、およびその正規化ベクトル $\hat{\boldsymbol{r}}_{AB} = \frac{\boldsymbol{r}_{AB}}{\|\boldsymbol{r}_{AB}\|}$ とするとき：
+### (4) 2つの扇形領域の幾何的オーバーラップ判定
+$\text{Sector}_A \cap \text{Sector}_B \neq \emptyset$ であるかを以下の4条件の論理和（いずれか1つでも満たせば交差）によって算出します：
 
-$$\text{isPointInFOV}(A, \boldsymbol{p}_B) = \begin{cases} \text{true} & (\|\boldsymbol{r}_{AB}\| \le R_{\text{max}} \quad \land \quad \boldsymbol{v}_{\text{torso}, A} \cdot \hat{\boldsymbol{r}}_{AB} \ge \cos\left(\frac{\theta_{\text{FOV}}}{2}\right)) \\ \text{false} & (\text{otherwise}) \end{cases}$$
-
-※ $\theta_{\text{FOV}}$ は前方評価領域の開き角 (`DEFAULT_FOV_ANGLE` = $\frac{\pi}{2}$ ラジアン / 90度)。
-
-### (4) 結合判定条件
-人物 $A$ と人物 $B$ について、どちらか一方の前方評価領域内に相手の身体位置（中心座標）が存在する場合（＝領域の重なり・侵入）、前後における同一グループとして判定します：
-
-$$\text{isOrientedTogether}(A, B) = \text{isPointInFOV}(A, \boldsymbol{p}_B) \quad \lor \quad \text{isPointInFOV}(B, \boldsymbol{p}_A)$$
+1. **頂点包摂:** $\boldsymbol{p}_A \in \text{Sector}_B \quad \lor \quad \boldsymbol{p}_B \in \text{Sector}_A$
+2. **レイ（側辺）交差:** $\text{Segment}_A \cap \text{Segment}_B \neq \emptyset$
+3. **レイと円弧の交差:** $\text{Segment}_A \cap \text{Arc}_B \neq \emptyset \quad \lor \quad \text{Segment}_B \cap \text{Arc}_A \neq \emptyset$
+4. **円弧同士の交差:** $\text{Arc}_A \cap \text{Arc}_B \neq \emptyset$
 
 非相交集合データ構造 (Union-Find) を適用し、既存の距離ベース横並びグループ構造へ本判定結果を統合して最終的な `Groups` を構成します。
