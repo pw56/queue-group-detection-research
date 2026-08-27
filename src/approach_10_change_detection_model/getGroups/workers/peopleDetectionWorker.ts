@@ -30,7 +30,7 @@ async function initWorker(): Promise<void> {
     ort.env.wasm.numThreads = 1;
     
     session = await ort.InferenceSession.create(
-      resolvePublicPath('/models/yolo12n.onnx'),
+      resolvePublicPath('/../models/yolo12n.onnx'),
       {
         executionProviders: ['webgpu', 'wasm'],
         freeDimensionOverrides: {}
