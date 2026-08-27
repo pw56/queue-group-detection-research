@@ -8,24 +8,24 @@ import { Groups, Person, Keypoint2D } from '../types';
  *    $$\boldsymbol{p}_{shoulder} = \frac{\boldsymbol{k}_{5} + \boldsymbol{k}_{6}}{2}, \quad \boldsymbol{p}_{hip} = \frac{\boldsymbol{k}_{11} + \boldsymbol{k}_{12}}{2}$$
  *    $$\boldsymbol{v}_{torso} = \frac{\boldsymbol{p}_{shoulder} - \boldsymbol{p}_{hip}}{\|\boldsymbol{p}_{shoulder} - \boldsymbol{p}_{hip}\|}$$
  *
- * 2. 人物 A, B 間の位置関係ベクトル $\hat{\boldsymbol{r}}_{AB}$ と視線・体躯交差角:
- *    $$\cos \theta_{A \to B} = \boldsymbol{v}_{torso, A} \cdot \hat{\boldsymbol{r}}_{AB}$$
- *    $$\cos \theta_{B \to A} = \boldsymbol{v}_{torso, B} \cdot (-\hat{\boldsymbol{r}}_{AB})$$
+ * 2. 前方評価領域（扇形／FOV）による包含判定:
+ *    点 $\boldsymbol{p}_B$ が $A$ の視界領域内に存在するか:
+ *    $$d(\boldsymbol{p}_A, \boldsymbol{p}_B) \le R_{\text{FOV}}, \quad \frac{\boldsymbol{v}_{\text{torso}, A} \cdot (\boldsymbol{p}_B - \boldsymbol{p}_A)}{\|\boldsymbol{p}_B - \boldsymbol{p}_A\|} \ge \cos\left(\frac{\theta_{\text{FOV}}}{2}\right)$$
  *
- * 3. 相互ベクトル交差条件:
- *    $$\boldsymbol{v}_{\text{torso}, A} \cdot \boldsymbol{v}_{\text{torso}, B} \ge \cos(\text{FACING\_ANGLE\_THRESHOLD})$$
+ * 3. 前方評価領域の重なり（領域相互侵入条件）:
+ *    $$\text{isPointInFOV}(A, \boldsymbol{p}_B) \quad \lor \quad \text{isPointInFOV}(B, \boldsymbol{p}_A)$$
  */
 
 interface OrientationGroupingOptions {
-  /** 前後間で「互いに向き合っている/同じ方向を向いて話している」とみなす角度の閾値 (ラジアン) */
-  facingAngleThreshold?: number;
+  /** 前方評価領域（視野角）の開き角 (ラジアン, デフォルト: 90度 = ±45度) */
+  fovAngle?: number;
   /** 前後と判定する距離の上限 (ピクセル) */
   maxDistanceThreshold?: number;
 }
 
 // 閾値定数（大文字スタイル）
 const KEYPOINT_SCORE_THRESHOLD = 0.20;
-const DEFAULT_FACING_ANGLE_THRESHOLD = Math.PI / 4; // 45度
+const DEFAULT_FOV_ANGLE = Math.PI / 2; // 90度（正面を中心として左右45度ずつ）
 const AVERAGE_BODY_SIZE_DISTANCE_MULTIPLE = 2;
 
 // メモリ再利用用の変数（スコープ外宣言によるOOM防止）
@@ -157,22 +157,40 @@ function getTorsoDirectionVector(keypoints?: Keypoint2D[]): { x: number; y: numb
   return null;
 }
 
-function calculateCosTheta(
-  v1: { x: number; y: number },
-  v2: { x: number; y: number }
-): number {
-  const dot = v1.x * v2.x + v1.y * v2.y;
-  const len1 = Math.hypot(v1.x, v1.y);
-  const len2 = Math.hypot(v2.x, v2.y);
+/**
+ * 対象の点（targetPos）が、観察者の位置（observerPos）・前方向き（dir）・到達距離（maxDist）・視野角（fovAngle）で構成される
+ * 前方視界評価領域（扇形）内に存在するか判定する
+ */
+function isPointInFOV(
+  observerPos: { x: number; y: number },
+  dir: { x: number; y: number },
+  targetPos: { x: number; y: number },
+  maxDist: number,
+  fovAngle: number
+): boolean {
+  const dx = targetPos.x - observerPos.x;
+  const dy = targetPos.y - observerPos.y;
+  const dist = Math.hypot(dx, dy);
 
-  if (len1 === 0 || len2 === 0) {
-    return 0;
+  // 到達距離外または同一点
+  if (dist > maxDist || dist === 0) {
+    return false;
   }
-  return dot / (len1 * len2);
+
+  // 相対位置への単位ベクトル
+  const relX = dx / dist;
+  const relY = dy / dist;
+
+  // 正面ベクトルとの内積 (コサイン)
+  const cosVal = dir.x * relX + dir.y * relY;
+  const halfFovCos = Math.cos(fovAngle / 2);
+
+  // 正面中心の左右半角（fovAngle / 2）以内に収まっているか
+  return cosVal >= halfFovCos;
 }
 
 /**
- * 隣り合う前後の人物判定およびベクトルの交差角度から連れ判定を行う
+ * 隣り合う前後の人物判定および体の前方の評価領域（視野・視界領域）の重なり判定を行う
  */
 export function isOrientedTogether(
   personA: Person,
@@ -180,7 +198,7 @@ export function isOrientedTogether(
   options: OrientationGroupingOptions = {},
   fallbackMaxDistance?: number
 ): boolean {
-  const facingAngleThresh = options.facingAngleThreshold ?? DEFAULT_FACING_ANGLE_THRESHOLD;
+  const fovAngle = options.fovAngle ?? DEFAULT_FOV_ANGLE;
   const maxDistThresh = options.maxDistanceThreshold ?? fallbackMaxDistance ?? 250;
 
   const dirA = personA.direction
@@ -205,32 +223,13 @@ export function isOrientedTogether(
   const posA = { x: boxA.originX + boxA.width / 2, y: boxA.originY + boxA.height / 2 };
   const posB = { x: boxB.originX + boxB.width / 2, y: boxB.originY + boxB.height / 2 };
 
-  const dx = posB.x - posA.x;
-  const dy = posB.y - posA.y;
-  const dist = Math.hypot(dx, dy);
+  // Aの体の前方の評価領域内にBの位置（身体の中心）が入っているか
+  const bInFovA = isPointInFOV(posA, dirA, posB, maxDistThresh, fovAngle);
+  // Bの体の前方の評価領域内にAの位置（身体の中心）が入っているか
+  const aInFovB = isPointInFOV(posB, dirB, posA, maxDistThresh, fovAngle);
 
-  if (dist > maxDistThresh || dist === 0) {
-    return false;
-  }
-
-  const relVecAB = { x: dx / dist, y: dy / dist };
-  const relVecBA = { x: -dx / dist, y: -dy / dist };
-
-  const cosAtoB = calculateCosTheta(dirA, relVecAB);
-  const cosBtoA = calculateCosTheta(dirB, relVecBA);
-
-  const minCos = Math.cos(facingAngleThresh);
-
-  if (cosAtoB >= minCos || cosBtoA >= minCos) {
-    return true;
-  }
-
-  const interCos = calculateCosTheta(dirA, dirB);
-  if (interCos >= minCos) {
-    return true;
-  }
-
-  return false;
+  // お互いの体の前方の評価領域が交わっている（いずれかの視界領域が相手を捉えている／相互侵入している）場合
+  return bInFovA || aInFovB;
 }
 
 /**
@@ -273,7 +272,7 @@ export function groupByOrientation(
     }
   }
 
-  // 2. 横並びの誰か1人でも前または後ろの列の人と体の向きが交差していたら連れ（グループ）判定
+  // 2. 横並びの誰か1人でも前または後ろの列の人と体の前方の評価領域が重なっていたら連れ（グループ）判定
   for (let i = 0; i < people.length; i++) {
     for (let j = i + 1; j < people.length; j++) {
       if (find(i) !== find(j)) {
