@@ -1,0 +1,17 @@
+name: Build approach_11_vector_orientation_grouping
+
+on:
+  push:
+    paths:
+      - 'src/approach_11_vector_orientation_grouping/**'
+
+# GitHub Pages へのデプロイに必要な権限を設定
+permissions:
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    uses: ./.github/workflows/build-and-deploy.yml
+    with:
+      directory: ./src/approach_11_vector_orientation_grouping
