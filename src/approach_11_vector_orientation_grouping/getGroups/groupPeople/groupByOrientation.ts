@@ -123,15 +123,15 @@ function getTorsoDirectionVector(keypoints?: Keypoint2D[]): Point | null {
 }
 
 /**
- * 待機列のベクトルを利用して、横向きの人物の胴体四角形（TorsoQuad）に厚み補正を適用して取得する
+ * 待機列のベクトルを利用して、横向きの人物の胴体四角形（TorsoQuad）に本来の大きさ（逆投影・幾何補正）を適用して取得する
  */
 function getCorrectedTorsoQuad(
   person: Person,
+  queueLine: QueueLine | null,
   thicknessRatio: number
 ): TorsoQuad | null {
   const keypoints = person.keypoints;
   const bodySize = estimatePersonBodySize(person);
-  const minThickness = bodySize * thicknessRatio;
 
   if (keypoints && keypoints.length >= 13) {
     const ls = keypoints[5];
@@ -150,21 +150,55 @@ function getCorrectedTorsoQuad(
       let pRH = { x: rh.x, y: rh.y };
       let pLH = { x: lh.x, y: lh.y };
 
-      const shoulderWidth = Math.hypot(pRS.x - pLS.x, pRS.y - pLS.y);
-      const hipWidth = Math.hypot(pRH.x - pLH.x, pRH.y - pLH.y);
-      const currentWidth = (shoulderWidth + hipWidth) / 2;
+      const dir = getTorsoDirectionVector(keypoints);
 
-      // 横向きで幅が厚み閾値より薄い場合、胴体直交方向に膨らませる（厚み補正）
-      if (currentWidth < minThickness) {
-        const dir = getTorsoDirectionVector(keypoints);
-        if (dir) {
+      // 待機列ベクトルが存在する場合、行列直線と身体方向から本来の正面幅・本来の厚みを幾何学的に復元
+      if (queueLine && dir) {
+        // 待機列の方向単位ベクトル
+        const qDir = queueLine.direction;
+        const qLen = Math.hypot(qDir.x, qDir.y);
+
+        if (qLen > 0) {
+          const uQ = { x: qDir.x / qLen, y: qDir.y / qLen };
+
+          // 胴体の向きと列方向のなす角 θ の内積 cos(θ)
+          const cosTheta = Math.abs(dir.x * uQ.x + dir.y * uQ.y);
+          // シータのサイン値 sin(θ) = sqrt(1 - cos^2(θ))
+          const sinTheta = Math.sqrt(Math.max(0, 1 - cosTheta * cosTheta));
+
+          // 人体の標準的な肩幅（全高の約0.25倍）および厚み（全高の約0.15倍）
+          const expectedWidth = bodySize * 0.25;
+          const expectedThickness = bodySize * (thicknessRatio > 0 ? thicknessRatio : 0.15);
+
+          // 横向き角度に応じた投影幅と本来のサイズからの復元比率 (1 / max(sin(θ), 0.2))
+          const scaleFactor = 1 / Math.max(sinTheta, 0.2);
+          const targetWidth = Math.min(expectedWidth, expectedWidth * scaleFactor);
+
+          const currentWidth = (Math.hypot(pRS.x - pLS.x, pRS.y - pLS.y) + Math.hypot(pRH.x - pLH.x, pRH.y - pLH.y)) / 2;
+
+          if (currentWidth < targetWidth) {
+            // 肩線・腰線ベクトル（左右方向）
+            const lrDir = { x: pRS.x - pLS.x, y: pRS.y - pLS.y };
+            const lrLen = Math.hypot(lrDir.x, lrDir.y);
+
+            const uLR = lrLen > 0 ? { x: lrDir.x / lrLen, y: lrDir.y / lrLen } : { x: -dir.y, y: dir.x };
+            const expandWidth = (targetWidth - currentWidth) / 2;
+
+            // 幅方向への復元補正
+            pLS = { x: pLS.x - uLR.x * expandWidth, y: pLS.y - uLR.y * expandWidth };
+            pRS = { x: pRS.x + uLR.x * expandWidth, y: pRS.y + uLR.y * expandWidth };
+            pRH = { x: pRH.x + uLR.x * expandWidth, y: pRH.y + uLR.y * expandWidth };
+            pLH = { x: pLH.x - uLR.x * expandWidth, y: pLH.y - uLR.y * expandWidth };
+          }
+
+          // 胴体前後の厚み方向への押し出し補正
           const normal = { x: -dir.y, y: dir.x };
-          const expandAmount = (minThickness - currentWidth) / 2;
+          const expandThickness = expectedThickness / 2;
 
-          pLS = { x: pLS.x - normal.x * expandAmount, y: pLS.y - normal.y * expandAmount };
-          pRS = { x: pRS.x + normal.x * expandAmount, y: pRS.y + normal.y * expandAmount };
-          pRH = { x: pRH.x + normal.x * expandAmount, y: pRH.y + normal.y * expandAmount };
-          pLH = { x: pLH.x - normal.x * expandAmount, y: pLH.y - normal.y * expandAmount };
+          pLS = { x: pLS.x - normal.x * expandThickness, y: pLS.y - normal.y * expandThickness };
+          pRS = { x: pRS.x + normal.x * expandThickness, y: pRS.y + normal.y * expandThickness };
+          pRH = { x: pRH.x + normal.x * expandThickness, y: pRH.y + normal.y * expandThickness };
+          pLH = { x: pLH.x - normal.x * expandThickness, y: pLH.y - normal.y * expandThickness };
         }
       }
 
@@ -277,6 +311,7 @@ function isSectorIntersectingQuad(sector: Sector, quad: TorsoQuad): boolean {
 export function isOrientedTogether(
   personA: Person,
   personB: Person,
+  queueLine: QueueLine | null = null,
   options: OrientationGroupingOptions = {}
 ): boolean {
   const fovAngle = options.fovAngle ?? DEFAULT_FOV_ANGLE;
@@ -293,8 +328,8 @@ export function isOrientedTogether(
 
   if (!dirA || !dirB) return false;
 
-  const quadA = getCorrectedTorsoQuad(personA, thicknessRatio);
-  const quadB = getCorrectedTorsoQuad(personB, thicknessRatio);
+  const quadA = getCorrectedTorsoQuad(personA, queueLine, thicknessRatio);
+  const quadB = getCorrectedTorsoQuad(personB, queueLine, thicknessRatio);
 
   if (!quadA || !quadB) return false;
 
@@ -364,7 +399,7 @@ export function groupByOrientation(
 
       for (let i = 0; i < group1.length; i++) {
         for (let j = 0; j < group2.length; j++) {
-          if (isOrientedTogether(group1[i], group2[j], options)) {
+          if (isOrientedTogether(group1[i], group2[j], queueLine, options)) {
             shouldMerge = true;
             break;
           }
