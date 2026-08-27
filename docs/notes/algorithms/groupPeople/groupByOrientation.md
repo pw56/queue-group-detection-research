@@ -14,10 +14,10 @@ $$S = \frac{1}{\max(\sin\theta, 0.2)}$$
 
 算出された本来の正面肩幅 $W_{\text{target}} = H_i \cdot 0.25 \cdot S$（$H_i$ は人物の全高）および人間工学に基づく標準的な胴体厚み $T_{\text{target}} = H_i \cdot 0.15$ に基づいて、胴体四角形（Torso Quad）を元の物理的大きさに幾何学的に復元・押し出し計算します。
 
-### (2) 個人の身体サイズに基づく動的到達半径
-各人物 $i$ の全高 $H_i$ に距離倍率 $M = 1.2$ を乗算し、個人別の到達半径 $R_i$ を算出します：
+### (2) 個人のバウンディングボックス横幅に基づく判定半径
+各人物 $i$ の扇形評価領域の到達半径 $R_i$ には、全員一律で自身のバウンディングボックスの横幅（$\text{width}_i$）を使用します：
 
-$$R_i = H_i \cdot M$$
+$$R_i = \text{width}_i$$
 
 ### (3) 扇形領域 (Sector) と胴体四角形 (Torso Quad) の交差判定
 人物 $A$ の扇形領域 $\text{Sector}_A$ と人物 $B$ の補正済み胴体四角形 $\text{Quad}_B$ の重なり判定 $\text{isSectorIntersectingQuad}(\text{Sector}_A, \text{Quad}_B)$ は、以下のいずれかを満たす場合に `true` となります：

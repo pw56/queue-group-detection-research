@@ -315,7 +315,6 @@ export function isOrientedTogether(
   options: OrientationGroupingOptions = {}
 ): boolean {
   const fovAngle = options.fovAngle ?? DEFAULT_FOV_ANGLE;
-  const distMultiple = options.distanceMultiple ?? DEFAULT_DISTANCE_MULTIPLE;
   const thicknessRatio = options.bodyThicknessRatio ?? DEFAULT_BODY_THICKNESS_RATIO;
 
   const dirA = personA.direction
@@ -341,12 +340,12 @@ export function isOrientedTogether(
   const posA = { x: boxA.originX + boxA.width / 2, y: boxA.originY + boxA.height / 2 };
   const posB = { x: boxB.originX + boxB.width / 2, y: boxB.originY + boxB.height / 2 };
 
-  // 各自の身体サイズに基づく個別半径の計算
-  const sizeA = estimatePersonBodySize(personA);
-  const sizeB = estimatePersonBodySize(personB);
+  // 全員自分のバウンディングボックスの横幅（width）を半径として適用
+  const radiusA = boxA.width;
+  const radiusB = boxB.width;
 
-  const sectorA: Sector = { origin: posA, dir: dirA, radius: sizeA * distMultiple, fovAngle };
-  const sectorB: Sector = { origin: posB, dir: dirB, radius: sizeB * distMultiple, fovAngle };
+  const sectorA: Sector = { origin: posA, dir: dirA, radius: radiusA, fovAngle };
+  const sectorB: Sector = { origin: posB, dir: dirB, radius: radiusB, fovAngle };
 
   // Aの扇形がBの胴体四角形と交差し、かつBの扇形がAの胴体四角形と交差する (AND条件)
   return isSectorIntersectingQuad(sectorA, quadB) && isSectorIntersectingQuad(sectorB, quadA);
