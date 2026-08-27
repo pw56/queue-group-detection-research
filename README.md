@@ -36,11 +36,8 @@ latexmk -lualatex main.tex
 cd src/approach_01_baseline
 
 # 依存パッケージのインストール
-npm install
+npm ci
 
 # ローカル開発サーバーの起動 (ブラウザで確認可能)
 npm run dev
-
-# 成果物のビルド (distディレクトリに出力)
-npm run build
 ```
