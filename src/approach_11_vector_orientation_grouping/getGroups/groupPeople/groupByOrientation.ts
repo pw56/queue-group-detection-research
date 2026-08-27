@@ -27,8 +27,7 @@ interface OrientationGroupingOptions {
 
 // 閾値定数
 const KEYPOINT_SCORE_THRESHOLD = 0.5;
-const DEFAULT_FOV_ANGLE = Math.PI / 2; // 90度（正面を中心として左右45度ずつ）
-const DEFAULT_DISTANCE_MULTIPLE = 1.2;
+const DEFAULT_FOV_ANGLE = Math.PI; // 180度（正面を中心として左右90度ずつ）
 const DEFAULT_BODY_THICKNESS_RATIO = 0.2; // 横向き時の最小厚み（対身長比）
 
 type Point = { x: number; y: number };
