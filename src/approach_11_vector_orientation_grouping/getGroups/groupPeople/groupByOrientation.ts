@@ -1,4 +1,5 @@
-import { Groups, Person, Keypoint2D, QueueLine } from '../types';
+import { Groups, Person, Keypoint2D } from '../types';
+import { QueueLine } from './estimateQueueLine';
 
 /**
  * 【子アルゴリズム 3】体の向き・確率スコア（連続値）ベースの前後グループ化アルゴリズム
@@ -29,13 +30,6 @@ const DEFAULT_FOV_ANGLE = (2 * Math.PI) / 3; // 120度（正面を中心とし�
 const DEFAULT_SCORE_THRESHOLD = 0.35; // スコア閾値
 
 type Point = { x: number; y: number };
-
-interface Sector {
-  origin: Point;
-  dir: Point;
-  radius: number;
-  fovAngle: number;
-}
 
 /** 胴体の4頂点（左肩、右肩、右腰、左腰）で作られる四角形 */
 type TorsoQuad = [Point, Point, Point, Point];
@@ -255,91 +249,6 @@ function getTorsoQuad(person: Person): TorsoQuad | null {
   return null;
 }
 
-/** 任意の点 p が扇形領域内に含まれるか */
-function isPointInSector(p: Point, sector: Sector): boolean {
-  const dx = p.x - sector.origin.x;
-  const dy = p.y - sector.origin.y;
-  const distSq = dx * dx + dy * dy;
-
-  if (distSq > sector.radius * sector.radius || distSq === 0) {
-    return false;
-  }
-
-  const dist = Math.sqrt(distSq);
-  const rx = dx / dist;
-  const ry = dy / dist;
-
-  const cosVal = sector.dir.x * rx + sector.dir.y * ry;
-  return cosVal >= Math.cos(sector.fovAngle / 2);
-}
-
-/** 2つの線分 (p1-p2 と p3-p4) が交差しているか */
-function doSegmentsIntersect(p1: Point, p2: Point, p3: Point, p4: Point): boolean {
-  const ccw = (a: Point, b: Point, c: Point) => {
-    return (c.y - a.y) * (b.x - a.x) > (b.y - a.y) * (c.x - a.x);
-  };
-  return ccw(p1, p3, p4) !== ccw(p2, p3, p4) && ccw(p1, p2, p3) !== ccw(p1, p2, p4);
-}
-
-/** 扇形領域 (Sector) と 胴体四角形 (TorsoQuad) が重なっているか */
-function isSectorIntersectingQuad(sector: Sector, quad: TorsoQuad): boolean {
-  // 1. 四角形の4頂点のいずれかが扇形内に入っているか
-  for (let i = 0; i < 4; i++) {
-    if (isPointInSector(quad[i], sector)) {
-      return true;
-    }
-  }
-
-  // 2. 扇形の中心点が四角形内に入っているか (簡単な点・多角形包含判定)
-  let inside = false;
-  for (let i = 0, j = 3; i < 4; j = i++) {
-    const xi = quad[i].x, yi = quad[i].y;
-    const xj = quad[j].x, yj = quad[j].y;
-    const intersect =
-      yi > sector.origin.y !== yj > sector.origin.y &&
-      sector.origin.x < ((xj - xi) * (sector.origin.y - yi)) / (yj - yi) + xi;
-    if (intersect) inside = !inside;
-  }
-  if (inside) return true;
-
-  // 3. 扇形の境界線分（左右レイ）と四角形の4辺が交差しているか
-  const halfFov = sector.fovAngle / 2;
-  const cos = Math.cos(halfFov);
-  const sin = Math.sin(halfFov);
-
-  // 左境界ベクトルと右境界ベクトル
-  const leftDir = {
-    x: sector.dir.x * cos - sector.dir.y * sin,
-    y: sector.dir.x * sin + sector.dir.y * cos,
-  };
-  const rightDir = {
-    x: sector.dir.x * cos + sector.dir.y * sin,
-    y: -sector.dir.x * sin + sector.dir.y * cos,
-  };
-
-  const leftRayEnd = {
-    x: sector.origin.x + leftDir.x * sector.radius,
-    y: sector.origin.y + leftDir.y * sector.radius,
-  };
-  const rightRayEnd = {
-    x: sector.origin.x + rightDir.x * sector.radius,
-    y: sector.origin.y + rightDir.y * sector.radius,
-  };
-
-  for (let i = 0; i < 4; i++) {
-    const q1 = quad[i];
-    const q2 = quad[(i + 1) % 4];
-    if (
-      doSegmentsIntersect(sector.origin, leftRayEnd, q1, q2) ||
-      doSegmentsIntersect(sector.origin, rightRayEnd, q1, q2)
-    ) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 /**
  * AからBへの片方向視界スコア（0.0 ～ 1.0）を計算する
  */
@@ -379,6 +288,7 @@ export function calculateOrientationScore(
   options: OrientationGroupingOptions = {}
 ): number {
   const fovAngle = options.fovAngle ?? DEFAULT_FOV_ANGLE;
+  const distanceMultiple = options.distanceMultiple ?? 1.2;
 
   const dirA = personA.direction
     ? { x: personA.direction.x, y: personA.direction.y }
@@ -406,10 +316,9 @@ export function calculateOrientationScore(
 
   // 2. 距離減衰スコアの計算（身体サイズに対する相対距離）
   const dist = Math.hypot(posB.x - posA.x, posB.y - posA.y);
-  const maxRadius = Math.max(
-    personA.boundingBox?.width ?? 100,
-    personB.boundingBox?.width ?? 100
-  ) * 2.5;
+  const bodySizeA = estimatePersonBodySize(personA);
+  const bodySizeB = estimatePersonBodySize(personB);
+  const maxRadius = Math.max(bodySizeA, bodySizeB) * distanceMultiple;
 
   if (dist > maxRadius) return 0.0;
 
