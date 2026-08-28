@@ -6,16 +6,15 @@ import {
   WorkerResultMessage,
   Keypoint2D
 } from '../types';
+import { resizeImageAsImageBitmap } from '../utils/imageHelper';
 
 let detector: any = null;
 
 // OOM防止のためスコープ外で宣言・使い回すバッファ変数
 let currentPoses: Pose[] = [];
 
-// 小さすぎるビットマップの拡大用固定キャンバス（ワーカーごとに1つ保持して使い回す）
+// 小さすぎるビットマップの拡大用固定サイズ
 const MIN_INPUT_SIZE = 256;
-const workerCanvas = new OffscreenCanvas(MIN_INPUT_SIZE, MIN_INPUT_SIZE);
-const workerCtx = workerCanvas.getContext('2d', { willReadFrequently: true });
 
 async function initWorker(width: number, height: number) {
   if (!detector) {
@@ -69,15 +68,8 @@ async function estimatePoseFromBitmap(imageBitmap: ImageBitmap): Promise<{
 
   // 切り取ったのがモデルの入力用として小さすぎる場合は拡大
   if (origWidth < MIN_INPUT_SIZE || origHeight < MIN_INPUT_SIZE) {
-    if (workerCtx) {
-      workerCtx.clearRect(0, 0, MIN_INPUT_SIZE, MIN_INPUT_SIZE);
-      workerCtx.drawImage(imageBitmap, 0, 0, MIN_INPUT_SIZE, MIN_INPUT_SIZE);
-      // ビットマップで指定範囲で切り出して、通常時と同じようにモデルに渡す
-      inputBitmapToEstimate = await createImageBitmap(workerCanvas, 0, 0, MIN_INPUT_SIZE, MIN_INPUT_SIZE);
-      isResized = true;
-    } else {
-      inputBitmapToEstimate = imageBitmap;
-    }
+    inputBitmapToEstimate = await resizeImageAsImageBitmap(imageBitmap, MIN_INPUT_SIZE, MIN_INPUT_SIZE);
+    isResized = true;
   } else {
     inputBitmapToEstimate = imageBitmap;
   }

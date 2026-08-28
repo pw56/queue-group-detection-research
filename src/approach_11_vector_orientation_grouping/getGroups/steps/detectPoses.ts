@@ -1,5 +1,6 @@
 import { GroupDetectionImageSource, Person, Keypoint2D, DirectionVector, BoundingBoxRect } from '../types';
 import { workerPoolManager } from '../workers';
+import { cropImageAsImageBitmap } from '../utils/imageHelper';
 
 // キーポイントから身体の向き（2Dベクトル）を算出する関数
 function calculateBodyDirection(keypoints: Keypoint2D[]): DirectionVector {
@@ -60,17 +61,6 @@ export async function detectPoses(
   const imgWidth = imageSource.naturalWidth || imageSource.width;
   const imgHeight = imageSource.naturalHeight || imageSource.height;
 
-  const canvas = document.createElement('canvas');
-  canvas.width = imgWidth;
-  canvas.height = imgHeight;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-  if (!ctx) {
-    throw new Error('Failed to get 2d context for pose detection');
-  }
-
-  ctx.drawImage(imageSource, 0, 0);
-
   const posePromises = people.map(async (person, index) => {
     if (!person.boundingBox) return person;
 
@@ -83,7 +73,7 @@ export async function detectPoses(
     if (sw <= 0 || sh <= 0) return person;
 
     const rect: BoundingBoxRect = { originX: sx, originY: sy, width: sw, height: sh };
-    const imageBitmap = await createImageBitmap(canvas, sx, sy, sw, sh);
+    const imageBitmap = await cropImageAsImageBitmap(imageSource, sx, sy, sw, sh);
 
     try {
       const res = await workerPoolManager.processPose(
@@ -112,8 +102,6 @@ export async function detectPoses(
   });
 
   const updatedPeople = await Promise.all(posePromises);
-  canvas.width = 0;
-  canvas.height = 0;
 
   return updatedPeople;
 }

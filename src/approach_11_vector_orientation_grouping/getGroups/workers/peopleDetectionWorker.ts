@@ -6,6 +6,7 @@ import {
   BoundingBoxRect,
   Person
 } from '../types';
+import { resizeImageAsImageData } from '../utils/imageHelper';
 
 let session: ort.InferenceSession | null = null;
 
@@ -19,10 +20,6 @@ let finalPeopleBuffer: Person[] = [];
 
 // 再利用可能なテンソル用データバッファ (1 x 3 x 640 x 640)
 const float32DataBuffer = new Float32Array(3 * MODEL_INPUT_SIZE * MODEL_INPUT_SIZE);
-
-// オフスクリーンキャンバス（入力画像のリサイズ・テンソル変換用）
-const offscreenCanvas = new OffscreenCanvas(MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
-const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
 
 async function initWorker(): Promise<void> {
   if (!session) {
@@ -141,51 +138,47 @@ self.onmessage = async (event: MessageEvent<WorkerIncomingMessage>) => {
         throw new Error('People detection worker is not initialized');
       }
 
-      if (offscreenCtx) {
-        offscreenCtx.clearRect(0, 0, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
-        offscreenCtx.drawImage(imageBitmap, 0, 0, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
-        const imageData = offscreenCtx.getImageData(0, 0, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
-        const { data: pixels } = imageData;
+      const imageData = await resizeImageAsImageData(imageBitmap, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE);
+      const { data: pixels } = imageData;
 
-        // RGBプレーンに正規化変換 (配列を生成せず固定TypedArrayへ直接書き込み)
-        const imageArea = MODEL_INPUT_SIZE * MODEL_INPUT_SIZE;
-        for (let i = 0, p = 0; i < pixels.length; i += 4, p++) {
-          float32DataBuffer[p] = pixels[i] / 255.0;                     // R
-          float32DataBuffer[imageArea + p] = pixels[i + 1] / 255.0;     // G
-          float32DataBuffer[imageArea * 2 + p] = pixels[i + 2] / 255.0; // B
-        }
+      // RGBプレーンに正規化変換 (配列を生成せず固定TypedArrayへ直接書き込み)
+      const imageArea = MODEL_INPUT_SIZE * MODEL_INPUT_SIZE;
+      for (let i = 0, p = 0; i < pixels.length; i += 4, p++) {
+        float32DataBuffer[p] = pixels[i] / 255.0;                     // R
+        float32DataBuffer[imageArea + p] = pixels[i + 1] / 255.0;     // G
+        float32DataBuffer[imageArea * 2 + p] = pixels[i + 2] / 255.0; // B
+      }
 
-        inputTensor = new ort.Tensor('float32', float32DataBuffer, [1, 3, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE]);
+      inputTensor = new ort.Tensor('float32', float32DataBuffer, [1, 3, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE]);
 
-        results = await session.run({ images: inputTensor });
-        
-        // 推論完了後、不要になった入力テンソルは即座に開放
-        inputTensor.dispose();
-        inputTensor = null;
+      results = await session.run({ images: inputTensor });
+      
+      // 推論完了後、不要になった入力テンソルは即座に開放
+      inputTensor.dispose();
+      inputTensor = null;
 
-        const output = results[Object.keys(results)[0]];
-        const outputData = output.data as Float32Array;
+      const output = results[Object.keys(results)[0]];
+      const outputData = output.data as Float32Array;
 
-        // YOLOv12 Nano 出力のパース ([1, 84, 8400] -> [1, 8400, 84] 形式などに応じたパース)
-        const scaleX = imgWidth / MODEL_INPUT_SIZE;
-        const scaleY = imgHeight / MODEL_INPUT_SIZE;
+      // YOLOv12 Nano 出力のパース ([1, 84, 8400] -> [1, 8400, 84] 形式などに応じたパース)
+      const scaleX = imgWidth / MODEL_INPUT_SIZE;
+      const scaleY = imgHeight / MODEL_INPUT_SIZE;
 
-        const numBoxes = 8400;
-        for (let i = 0; i < numBoxes; i++) {
-          const score = outputData[numBoxes * 4 + i]; // Person クラスのスコア
-          if (score >= CONFIDENCE_THRESHOLD) {
-            const cx = outputData[i] * scaleX;
-            const cy = outputData[numBoxes + i] * scaleY;
-            const w = outputData[numBoxes * 2 + i] * scaleX;
-            const h = outputData[numBoxes * 3 + i] * scaleY;
+      const numBoxes = 8400;
+      for (let i = 0; i < numBoxes; i++) {
+        const score = outputData[numBoxes * 4 + i]; // Person クラスのスコア
+        if (score >= CONFIDENCE_THRESHOLD) {
+          const cx = outputData[i] * scaleX;
+          const cy = outputData[numBoxes + i] * scaleY;
+          const w = outputData[numBoxes * 2 + i] * scaleX;
+          const h = outputData[numBoxes * 3 + i] * scaleY;
 
-            rawDetectionsBuffer.push({
-              originX: Math.max(0, Math.floor(cx - w / 2)),
-              originY: Math.max(0, Math.floor(cy - h / 2)),
-              width: Math.ceil(w),
-              height: Math.ceil(h)
-            });
-          }
+          rawDetectionsBuffer.push({
+            originX: Math.max(0, Math.floor(cx - w / 2)),
+            originY: Math.max(0, Math.floor(cy - h / 2)),
+            width: Math.ceil(w),
+            height: Math.ceil(h)
+          });
         }
       }
 

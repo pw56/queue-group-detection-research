@@ -1,5 +1,6 @@
 import { GroupDetectionImageSource, Person } from '../types';
 import { workerPoolManager } from '../workers';
+import { cropImageAsImageBitmap } from '../utils/imageHelper';
 
 // 人物の検出
 export async function detectPeople(
@@ -13,7 +14,7 @@ export async function detectPeople(
 
   let imageBitmap: ImageBitmap | null = null;
   try {
-    imageBitmap = await createImageBitmap(imageSource);
+    imageBitmap = await cropImageAsImageBitmap(imageSource, 0, 0, imgWidth, imgHeight);
     const people = await workerPoolManager.processPeopleDetection(
       imageBitmap,
       imgWidth,
