@@ -119,9 +119,27 @@ function getTorsoDirectionVector(keypoints?: Keypoint2D[]): Point | null {
     return null;
   }
 
-  // 左右ベクトル (lrX, lrY) に垂直な法線ベクトル (-lrY, lrX) を求めることで正面（お腹側）の向きを定義
-  const normalX = -lrY / len;
-  const normalY = lrX / len;
+  // 基本となる法線ベクトル（左肩→右肩に対して右手系での垂直方向）
+  let normalX = -lrY / len;
+  let normalY = lrX / len;
+
+  // 腰から肩へのベクトル（身体の上方向）が取得できる場合、法線がお腹側を向くよう外積符号で判定・修整
+  if (hasShoulders && hasHips) {
+    const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
+    const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
+    const hipMidX = (leftHip.x + rightHip.x) / 2;
+    const hipMidY = (leftHip.y + rightHip.y) / 2;
+
+    const upX = shoulderMidX - hipMidX;
+    const upY = shoulderMidY - hipMidY;
+
+    // 2D外積 (lrX * upY - lrY * upX) により右手/左手系を判定し、お腹側（正面）にベクトルを揃える
+    const crossProduct = lrX * upY - lrY * upX;
+    if (crossProduct < 0) {
+      normalX = -normalX;
+      normalY = -normalY;
+    }
+  }
 
   return { x: normalX, y: normalY };
 }
