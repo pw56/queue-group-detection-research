@@ -1,4 +1,5 @@
-import { Groups, Person, Keypoint2D, QueueLine } from '../types';
+import { Groups, Person, Keypoint2D } from '../types';
+import { QueueLine } from './estimateQueueLine';
 
 /**
  * 【子アルゴリズム 3】体の向き・評価領域相互認識ベースの前後グループ化アルゴリズム
@@ -24,8 +25,7 @@ interface OrientationGroupingOptions {
 
 // 閾値定数
 const KEYPOINT_SCORE_THRESHOLD = 0.5;
-const DEFAULT_FOV_ANGLE = Math.PI / 2; // 90度（正面を中心として左右45度ずつ）
-const DEFAULT_DISTANCE_MULTIPLE = 1.2;
+const DEFAULT_FOV_ANGLE = Math.PI; // 180度（正面を中心として左右90度ずつ）
 
 type Point = { x: number; y: number };
 
@@ -86,15 +86,11 @@ function getTorsoDirectionVector(keypoints?: Keypoint2D[]): Point | null {
     return null;
   }
 
-  const nose = keypoints[0];
-  const leftEar = keypoints[3];
-  const rightEar = keypoints[4];
   const leftShoulder = keypoints[5];
   const rightShoulder = keypoints[6];
   const leftHip = keypoints[11];
   const rightHip = keypoints[12];
 
-  const hasNose = nose && (nose.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD;
   const hasShoulders =
     leftShoulder && (leftShoulder.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD &&
     rightShoulder && (rightShoulder.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD;
@@ -123,40 +119,23 @@ function getTorsoDirectionVector(keypoints?: Keypoint2D[]): Point | null {
     return null;
   }
 
-  // 1. 仮の法線ベクトル算出 (-lrY, lrX)
+  // 基本となる法線ベクトル（左肩→右肩に対して右手系での垂直方向）
   let normalX = -lrY / len;
   let normalY = lrX / len;
 
-  // 基準点（肩の中点）の算出
-  const sMidX = hasShoulders
-    ? (leftShoulder.x + rightShoulder.x) / 2
-    : (leftHip.x + rightHip.x) / 2;
-  const sMidY = hasShoulders
-    ? (leftShoulder.y + rightShoulder.y) / 2
-    : (leftHip.y + rightHip.y) / 2;
+  // 腰から肩へのベクトル（身体の上方向）が取得できる場合、法線がお腹側を向くよう外積符号で判定・修整
+  if (hasShoulders && hasHips) {
+    const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
+    const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
+    const hipMidX = (leftHip.x + rightHip.x) / 2;
+    const hipMidY = (leftHip.y + rightHip.y) / 2;
 
-  // 2. 極性判定（お腹側・正面に向かせる補正）
-  // 優先度A: 鼻（Nose）のキーポイントが存在する場合、鼻のある方向を「正面」と確定
-  if (hasNose) {
-    const noseVecX = nose.x - sMidX;
-    const noseVecY = nose.y - sMidY;
-    const dot = normalX * noseVecX + normalY * noseVecY;
-    if (dot < 0) {
-      normalX = -normalX;
-      normalY = -normalY;
-    }
-  }
-  // 優先度B: 両腰（Hips）が存在する場合、画像座標系（Y-down）における外積判定で極性を確定
-  else if (hasShoulders && hasHips) {
-    const hMidX = (leftHip.x + rightHip.x) / 2;
-    const hMidY = (leftHip.y + rightHip.y) / 2;
+    const upX = shoulderMidX - hipMidX;
+    const upY = shoulderMidY - hipMidY;
 
-    const upX = sMidX - hMidX;
-    const upY = sMidY - hMidY;
-
-    // 画像座標系（Y-down）における外積計算
+    // 2D外積 (lrX * upY - lrY * upX) により右手/左手系を判定し、お腹側（正面）にベクトルを揃える
     const crossProduct = lrX * upY - lrY * upX;
-    if (crossProduct > 0) {
+    if (crossProduct < 0) {
       normalX = -normalX;
       normalY = -normalY;
     }
