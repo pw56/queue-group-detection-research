@@ -79,6 +79,38 @@ function estimatePersonBodySize(person: Person): number {
 }
 
 /**
+ * 両肩（または両腰）の中点（扇形の発射原点）を取得する
+ */
+function getTorsoOriginPoint(person: Person): Point {
+  const keypoints = person.keypoints;
+  if (keypoints && keypoints.length >= 13) {
+    const ls = keypoints[5];
+    const rs = keypoints[6];
+    const lh = keypoints[11];
+    const rh = keypoints[12];
+
+    const validLS = ls && (ls.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD;
+    const validRS = rs && (rs.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD;
+    const validLH = lh && (lh.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD;
+    const validRH = rh && (rh.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD;
+
+    if (validLS && validRS) {
+      return { x: (ls.x + rs.x) / 2, y: (ls.y + rs.y) / 2 };
+    }
+    if (validLH && validRH) {
+      return { x: (lh.x + rh.x) / 2, y: (lh.y + rh.y) / 2 };
+    }
+  }
+
+  const box = person.boundingBox;
+  if (box) {
+    return { x: box.originX + box.width / 2, y: box.originY + box.height * 0.3 };
+  }
+
+  return { x: 0, y: 0 };
+}
+
+/**
  * 両肩（または両腰）のキーポイントから、身体の正面（お腹側）を向く2D法線ベクトルを取得する
  */
 function getTorsoDirectionVector(keypoints?: Keypoint2D[]): Point | null {
@@ -87,8 +119,6 @@ function getTorsoDirectionVector(keypoints?: Keypoint2D[]): Point | null {
   }
 
   const nose = keypoints[0];
-  const leftEar = keypoints[3];
-  const rightEar = keypoints[4];
   const leftShoulder = keypoints[5];
   const rightShoulder = keypoints[6];
   const leftHip = keypoints[11];
@@ -342,13 +372,13 @@ export function isOrientedTogether(
 
   if (!quadA || !quadB) return false;
 
+  const posA = getTorsoOriginPoint(personA);
+  const posB = getTorsoOriginPoint(personB);
+
   const boxA = personA.boundingBox;
   const boxB = personB.boundingBox;
 
   if (!boxA || !boxB) return false;
-
-  const posA = { x: boxA.originX + boxA.width / 2, y: boxA.originY + boxA.height / 2 };
-  const posB = { x: boxB.originX + boxB.width / 2, y: boxB.originY + boxB.height / 2 };
 
   // 全員自分のバウンディングボックスの横幅（width）を判定半径として適用
   const radiusA = boxA.width;
