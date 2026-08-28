@@ -38,30 +38,22 @@ export async function cropImageAsImageBitmap(
  * (resizeImageAsImageBitmap でリサイズ後にOffscreenCanvasを経由して抽出)
  */
 export async function resizeImageAsImageData(
-  imageSource: ImageBitmapSource,
+  imageSource: CanvasImageSource,
   targetWidth: number,
   targetHeight: number
 ): Promise<ImageData> {
-  // 1. createImageBitmap でリサイズ処理を実行
-  const resizedBitmap = await resizeImageAsImageBitmap(
-    imageSource,
-    targetWidth,
-    targetHeight
-  );
-
-  // 2. プールからキャンバスコンテキストを取得
+  // 1. プールからキャンバスコンテキストを取得
   const ctx = acquireCanvasContext(targetWidth, targetHeight);
 
   try {
-    // 3. 左上に描画
-    ctx.drawImage(resizedBitmap, 0, 0);
+    // 2. 左上に描画
+    ctx.drawImage(imageSource, 0, 0, targetWidth, targetHeight);
 
-    // 4. ImageData を抽出
+    // 3. ImageData を抽出
     const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
     return imageData;
   } finally {
-    // 5. 使い終わった ImageBitmap をクローズし、キャンバスをプールに返却
-    resizedBitmap.close();
+    // 4. キャンバスをプールに返却
     releaseCanvasContext(ctx);
   }
 }
