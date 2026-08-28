@@ -18,29 +18,40 @@ interface Task {
   reject: (reason: unknown) => void;
 }
 
-class WorkerPoolManager {
-  #poolSize: number;
+interface WorkerPoolOptions {
+  posePoolSize?: number;
+  peoplePoolSize?: number;
+}
+
+export class WorkerPoolManager {
+  #posePoolSize: number;
+  #peoplePoolSize: number;
   #poseWorkers: Worker[] = [];
   #idlePoseWorkers: Worker[] = [];
-  #peopleWorker: Worker | null = null;
-  #isPeopleWorkerIdle = true;
+  #peopleWorkers: Worker[] = [];
+  #idlePeopleWorkers: Worker[] = [];
 
   #taskQueue: Task[] = [];
   #activeTasks: Map<number, Task> = new Map();
   #isInitialized = false;
 
-  constructor(poolSize = 4) {
-    this.#poolSize = poolSize;
+  constructor(options: WorkerPoolOptions = {}) {
+    this.#posePoolSize = options.posePoolSize ?? 4;
+    this.#peoplePoolSize = options.peoplePoolSize ?? 1;
   }
 
   async #ensureInitialized(width: number, height: number): Promise<void> {
     if (!this.#isInitialized) {
-      this.#peopleWorker = new Worker(
-        new URL('./peopleDetectionWorker.ts', import.meta.url),
-        { type: 'module' }
-      );
+      for (let i = 0; i < this.#peoplePoolSize; i++) {
+        const worker = new Worker(
+          new URL('./peopleDetectionWorker.ts', import.meta.url),
+          { type: 'module' }
+        );
+        this.#peopleWorkers.push(worker);
+        this.#idlePeopleWorkers.push(worker);
+      }
 
-      for (let i = 0; i < this.#poolSize; i++) {
+      for (let i = 0; i < this.#posePoolSize; i++) {
         const worker = new Worker(new URL('./poseWorker.ts', import.meta.url), {
           type: 'module'
         });
@@ -51,7 +62,7 @@ class WorkerPoolManager {
       this.#isInitialized = true;
 
       const initMsg: WorkerIncomingMessage = { type: 'INIT', width, height };
-      this.#peopleWorker.postMessage(initMsg);
+      this.#peopleWorkers.forEach(worker => worker.postMessage(initMsg));
       this.#poseWorkers.forEach(worker => worker.postMessage(initMsg));
     }
   }
@@ -100,10 +111,10 @@ class WorkerPoolManager {
     for (let i = 0; i < this.#taskQueue.length; i++) {
       const task = this.#taskQueue[i];
 
-      if (task.type === 'PEOPLE' && this.#isPeopleWorkerIdle && this.#peopleWorker) {
+      if (task.type === 'PEOPLE' && this.#idlePeopleWorkers.length > 0) {
         this.#taskQueue.splice(i, 1);
-        this.#isPeopleWorkerIdle = false;
-        this.#executePeopleTask(this.#peopleWorker, task);
+        const worker = this.#idlePeopleWorkers.pop()!;
+        this.#executePeopleTask(worker, task);
         break;
       } else if (task.type === 'POSE' && this.#idlePoseWorkers.length > 0) {
         this.#taskQueue.splice(i, 1);
@@ -131,7 +142,7 @@ class WorkerPoolManager {
     const onMessage = (event: MessageEvent<WorkerResultMessage>) => {
       if (event.data.id === task.id && event.data.type === 'PEOPLE_RESULT') {
         cleanup();
-        this.#isPeopleWorkerIdle = true;
+        this.#idlePeopleWorkers.push(worker);
         const res = event.data as WorkerPeopleResultMessage;
         task.resolve(res.people);
         this.#dispatch();
@@ -140,7 +151,7 @@ class WorkerPoolManager {
 
     const onError = (error: ErrorEvent) => {
       cleanup();
-      this.#isPeopleWorkerIdle = true;
+      this.#idlePeopleWorkers.push(worker);
       task.reject(error);
       this.#dispatch();
     };
@@ -161,7 +172,7 @@ class WorkerPoolManager {
       worker.postMessage(message, [task.imageBitmap]);
     } catch (postErr) {
       cleanup();
-      this.#isPeopleWorkerIdle = true;
+      this.#idlePeopleWorkers.push(worker);
       task.reject(postErr);
       this.#dispatch();
     }
@@ -229,10 +240,9 @@ class WorkerPoolManager {
     }
     this.#activeTasks.clear();
 
-    if (this.#peopleWorker) {
-      this.#peopleWorker.terminate();
-      this.#peopleWorker = null;
-    }
+    this.#peopleWorkers.forEach(w => w.terminate());
+    this.#peopleWorkers = [];
+    this.#idlePeopleWorkers = [];
 
     this.#poseWorkers.forEach(w => w.terminate());
     this.#poseWorkers = [];
@@ -240,5 +250,3 @@ class WorkerPoolManager {
     this.#isInitialized = false;
   }
 }
-
-export const workerPoolManager = new WorkerPoolManager(4);
