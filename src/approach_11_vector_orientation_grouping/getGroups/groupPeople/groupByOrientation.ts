@@ -1,31 +1,32 @@
-import { Groups, Person, Keypoint2D } from '../types';
-import { QueueLine } from './estimateQueueLine';
+import { Groups, Person, Keypoint2D, QueueLine } from '../types';
 
 /**
- * 【子アルゴリズム 3】体の向き・評価領域相互認識ベースの前後グループ化アルゴリズム
+ * 【子アルゴリズム 3】体の向き・確率スコア（連続値）ベースの前後グループ化アルゴリズム
  *
  * 【LaTeX数式メモ】
- * 1. 胴体正面ベクトル (左肩から右肩への単位ベクトル $\boldsymbol{v}_{lr}$ に対する90度法線ベクトル):
- *    $$\boldsymbol{v}_{lr} = \boldsymbol{k}_{6} - \boldsymbol{k}_{5}$$
- *    $$\boldsymbol{v}_{torso} = \frac{(-v_{lr, y}, v_{lr, x})}{\|(-v_{lr, y}, v_{lr, x})\|}$$
+ * 1. 相対位置単位ベクトル:
+ *    $$\hat{\boldsymbol{v}}_{AB} = \frac{\boldsymbol{p}_B - \boldsymbol{p}_A}{\|\boldsymbol{p}_B - \boldsymbol{p}_A\|}$$
  *
- * 2. 視界扇形領域 (Sector):
- *    $$\text{Sector}(\boldsymbol{p}, \boldsymbol{v}, R, \theta) = \{ \boldsymbol{x} \mid \|\boldsymbol{x} - \boldsymbol{p}\| \le R \ \land \ \frac{(\boldsymbol{x} - \boldsymbol{p}) \cdot \boldsymbol{v}}{\|\boldsymbol{x} - \boldsymbol{p}\|} \ge \cos(\theta / 2) \}$$
+ * 2. 片方向視界スコア (対向度):
+ *    $$S_{sight}(A \to B) = \max\left(0, \frac{\hat{\boldsymbol{d}}_A \cdot \hat{\boldsymbol{v}}_{AB} - \cos(\theta / 2)}{1 - \cos(\theta / 2)}\right)$$
  *
- * 3. 相互認識判定 (AND条件):
- *    $$\text{isSectorIntersectingQuad}(\text{Sector}_A, \text{Quad}_B) \quad \land \quad \text{isSectorIntersectingQuad}(\text{Sector}_B, \text{Quad}_A)$$
+ * 3. 相互認識スコア (AND的評価):
+ *    $$S_{mutual}(A, B) = \sqrt{S_{sight}(A \to B) \times S_{sight}(B \to A)} \times S_{dist}(A, B)$$
  */
 
 interface OrientationGroupingOptions {
-  /** 前方評価領域（視野角）の開き角 (ラジアン, デフォルト: 90度 = ±45度) */
+  /** 前方評価領域（視野角）の開き角 (ラジアン, デフォルト: 120度 = ±60度) */
   fovAngle?: number;
   /** 個人の体サイズに乗算する距離倍率 (デフォルト: 1.2) */
   distanceMultiple?: number;
+  /** グループ統合を許可する相互スコア閾値 (0.0 ~ 1.0, デフォルト: 0.35) */
+  scoreThreshold?: number;
 }
 
 // 閾値定数
 const KEYPOINT_SCORE_THRESHOLD = 0.5;
-const DEFAULT_FOV_ANGLE = Math.PI; // 180度（正面を中心として左右90度ずつ）
+const DEFAULT_FOV_ANGLE = (2 * Math.PI) / 3; // 120度（正面を中心として左右60度ずつ）
+const DEFAULT_SCORE_THRESHOLD = 0.35; // スコア閾値
 
 type Point = { x: number; y: number };
 
@@ -79,9 +80,9 @@ function estimatePersonBodySize(person: Person): number {
 }
 
 /**
- * 両肩（または両腰）の中点（扇形の発射原点）を取得する
+ * 両肩（または両腰）の中点（評価原点）を取得する
  */
-function getTorsoOriginPoint(person: Person): Point {
+function getPersonCenterPoint(person: Person): Point {
   const keypoints = person.keypoints;
   if (keypoints && keypoints.length >= 13) {
     const ls = keypoints[5];
@@ -340,14 +341,43 @@ function isSectorIntersectingQuad(sector: Sector, quad: TorsoQuad): boolean {
 }
 
 /**
- * 2人の人物が互いの扇形評価領域と胴体四角形で相互認識（AND条件）されているかをチェック
+ * AからBへの片方向視界スコア（0.0 ～ 1.0）を計算する
  */
-export function isOrientedTogether(
+function calculateSightScore(
+  posA: Point,
+  dirA: Point,
+  posB: Point,
+  fovAngle: number
+): number {
+  const dx = posB.x - posA.x;
+  const dy = posB.y - posA.y;
+  const dist = Math.hypot(dx, dy);
+
+  if (dist === 0) return 1.0;
+
+  // AからBへの単位ベクトル
+  const ux = dx / dist;
+  const uy = dy / dist;
+
+  // 正面ベクトルとのなす角（cos θ）
+  const cosTheta = dirA.x * ux + dirA.y * uy;
+  const cosMin = Math.cos(fovAngle / 2);
+
+  if (cosTheta < cosMin) return 0.0;
+
+  // 視野の中心に近いほど1.0に近づく線形補間スコア
+  return (cosTheta - cosMin) / (1.0 - cosMin);
+}
+
+/**
+ * 2人間の相互認識・向き合いスコア（0.0 ～ 1.0）を計算する
+ */
+export function calculateOrientationScore(
   personA: Person,
   personB: Person,
   queueLine: QueueLine | null = null,
   options: OrientationGroupingOptions = {}
-): boolean {
+): number {
   const fovAngle = options.fovAngle ?? DEFAULT_FOV_ANGLE;
 
   const dirA = personA.direction
@@ -358,37 +388,50 @@ export function isOrientedTogether(
     ? { x: personB.direction.x, y: personB.direction.y }
     : getTorsoDirectionVector(personB.keypoints);
 
-  if (!dirA || !dirB) return false;
+  if (!dirA || !dirB) return 0.0;
 
-  // 双方とも正しく「前」を向いている場合は、向きによるグループ誤判定を防ぐためグループ検出を行わない
-  const isAForward = isFacingForward(dirA, queueLine);
-  const isBForward = isFacingForward(dirB, queueLine);
-  if (isAForward && isBForward) {
-    return false;
+  // 双方とも列の進行方向を正しく向いている場合はスコア0（グループ化しない）
+  if (isFacingForward(dirA, queueLine) && isFacingForward(dirB, queueLine)) {
+    return 0.0;
   }
 
-  const quadA = getTorsoQuad(personA);
-  const quadB = getTorsoQuad(personB);
+  const posA = getPersonCenterPoint(personA);
+  const posB = getPersonCenterPoint(personB);
 
-  if (!quadA || !quadB) return false;
+  // 1. 片方向視界スコアの計算
+  const sightAtoB = calculateSightScore(posA, dirA, posB, fovAngle);
+  const sightBtoA = calculateSightScore(posB, dirB, posA, fovAngle);
 
-  const posA = getTorsoOriginPoint(personA);
-  const posB = getTorsoOriginPoint(personB);
+  if (sightAtoB <= 0 || sightBtoA <= 0) return 0.0;
 
-  const boxA = personA.boundingBox;
-  const boxB = personB.boundingBox;
+  // 2. 距離減衰スコアの計算（身体サイズに対する相対距離）
+  const dist = Math.hypot(posB.x - posA.x, posB.y - posA.y);
+  const maxRadius = Math.max(
+    personA.boundingBox?.width ?? 100,
+    personB.boundingBox?.width ?? 100
+  ) * 2.5;
 
-  if (!boxA || !boxB) return false;
+  if (dist > maxRadius) return 0.0;
 
-  // 全員自分のバウンディングボックスの横幅（width）を判定半径として適用
-  const radiusA = boxA.width;
-  const radiusB = boxB.width;
+  const distanceScore = Math.max(0, 1.0 - dist / maxRadius);
 
-  const sectorA: Sector = { origin: posA, dir: dirA, radius: radiusA, fovAngle };
-  const sectorB: Sector = { origin: posB, dir: dirB, radius: radiusB, fovAngle };
+  // 3. 幾何平均による統合スコア計算
+  const mutualSight = Math.sqrt(sightAtoB * sightBtoA);
+  return mutualSight * distanceScore;
+}
 
-  // Aの扇形がBの胴体四角形と交差し、かつBの扇形がAの胴体四角形と交差する (AND条件)
-  return isSectorIntersectingQuad(sectorA, quadB) && isSectorIntersectingQuad(sectorB, quadA);
+/**
+ * 2人の人物が互いの扇形評価領域と胴体四角形で相互認識（AND条件）またはスコア閾値を超えているかをチェック
+ */
+export function isOrientedTogether(
+  personA: Person,
+  personB: Person,
+  queueLine: QueueLine | null = null,
+  options: OrientationGroupingOptions = {}
+): boolean {
+  const threshold = options.scoreThreshold ?? DEFAULT_SCORE_THRESHOLD;
+  const score = calculateOrientationScore(personA, personB, queueLine, options);
+  return score >= threshold;
 }
 
 /**
