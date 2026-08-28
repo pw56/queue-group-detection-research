@@ -21,14 +21,11 @@ interface OrientationGroupingOptions {
   fovAngle?: number;
   /** 個人の体サイズに乗算する距離倍率 (デフォルト: 1.2) */
   distanceMultiple?: number;
-  /** 人体の最小厚み比率 (身長に対する比率, デフォルト: 0.2) */
-  bodyThicknessRatio?: number;
 }
 
 // 閾値定数
 const KEYPOINT_SCORE_THRESHOLD = 0.5;
 const DEFAULT_FOV_ANGLE = Math.PI; // 180度（正面を中心として左右90度ずつ）
-const DEFAULT_BODY_THICKNESS_RATIO = 0.2; // 横向き時の最小厚み（対身長比）
 
 type Point = { x: number; y: number };
 
@@ -41,45 +38,6 @@ interface Sector {
 
 /** 胴体の4頂点（左肩、右肩、右腰、左腰）で作られる四角形 */
 type TorsoQuad = [Point, Point, Point, Point];
-
-/**
- * 人物の平均的な体の大きさ（縦幅/高さ）を算出する
- * 鼻から足首までの距離、またはバウンディングボックスの高さ
- */
-function estimatePersonBodySize(person: Person): number {
-  const keypoints = person.keypoints;
-  if (keypoints && keypoints.length > 16) {
-    const nose = keypoints[0];
-    const leftAnkle = keypoints[15];
-    const rightAnkle = keypoints[16];
-
-    const hasNose = nose && (nose.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD;
-    const leftAnkleValid = leftAnkle && (leftAnkle.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD;
-    const rightAnkleValid = rightAnkle && (rightAnkle.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD;
-
-    let ankleY: number | null = null;
-    if (leftAnkleValid && rightAnkleValid) {
-      ankleY = (leftAnkle.y + rightAnkle.y) / 2;
-    } else if (leftAnkleValid) {
-      ankleY = leftAnkle.y;
-    } else if (rightAnkleValid) {
-      ankleY = rightAnkle.y;
-    }
-
-    if (hasNose && ankleY !== null) {
-      const height = Math.abs(ankleY - nose.y);
-      if (height > 0) {
-        return height;
-      }
-    }
-  }
-
-  if (person.boundingBox && person.boundingBox.height > 0) {
-    return person.boundingBox.height;
-  }
-
-  return 200; // フォールバックデフォルト値
-}
 
 /**
  * 胴体の向き（両肩・両腰のキーポイント）から2D平面での方向ベクトルを取得する
@@ -140,15 +98,10 @@ function isFacingForward(dir: Point, queueLine: QueueLine | null): boolean {
 }
 
 /**
- * 待機列のベクトルを利用して、横向きの人物の胴体四角形（TorsoQuad）に本来の大きさ（逆投影・幾何補正）を適用して取得する
+ * 人物の現在の胴体四角形（TorsoQuad）を取得する
  */
-function getCorrectedTorsoQuad(
-  person: Person,
-  queueLine: QueueLine | null,
-  thicknessRatio: number
-): TorsoQuad | null {
+function getTorsoQuad(person: Person): TorsoQuad | null {
   const keypoints = person.keypoints;
-  const bodySize = estimatePersonBodySize(person);
 
   if (keypoints && keypoints.length >= 13) {
     const ls = keypoints[5];
@@ -162,68 +115,16 @@ function getCorrectedTorsoQuad(
     const validRH = rh && (rh.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD;
 
     if (validLS && validRS && validLH && validRH) {
-      let pLS = { x: ls.x, y: ls.y };
-      let pRS = { x: rs.x, y: rs.y };
-      let pRH = { x: rh.x, y: rh.y };
-      let pLH = { x: lh.x, y: lh.y };
-
-      const dir = getTorsoDirectionVector(keypoints);
-
-      // 待機列ベクトルが存在する場合、行列直線と身体方向から本来の正面幅・本来の厚みを幾何学的に復元
-      if (queueLine && dir) {
-        // 待機列の方向単位ベクトル
-        const qDir = queueLine.direction;
-        const qLen = Math.hypot(qDir.x, qDir.y);
-
-        if (qLen > 0) {
-          const uQ = { x: qDir.x / qLen, y: qDir.y / qLen };
-
-          // 胴体の向きと列方向のなす角 θ の内積 cos(θ)
-          const cosTheta = Math.abs(dir.x * uQ.x + dir.y * uQ.y);
-          // シータのサイン値 sin(θ) = sqrt(1 - cos^2(θ))
-          const sinTheta = Math.sqrt(Math.max(0, 1 - cosTheta * cosTheta));
-
-          // 人体の標準的な肩幅（全高の約0.25倍）および厚み（全高の約0.15倍）
-          const expectedWidth = bodySize * 0.25;
-          const expectedThickness = bodySize * (thicknessRatio > 0 ? thicknessRatio : 0.15);
-
-          // 横向き角度に応じた投影幅と本来のサイズからの復元比率 (1 / max(sin(θ), 0.2))
-          const scaleFactor = 1 / Math.max(sinTheta, 0.2);
-          const targetWidth = Math.min(expectedWidth, expectedWidth * scaleFactor);
-
-          const currentWidth = (Math.hypot(pRS.x - pLS.x, pRS.y - pLS.y) + Math.hypot(pRH.x - pLH.x, pRH.y - pLH.y)) / 2;
-
-          if (currentWidth < targetWidth) {
-            // 肩線・腰線ベクトル（左右方向）
-            const lrDir = { x: pRS.x - pLS.x, y: pRS.y - pLS.y };
-            const lrLen = Math.hypot(lrDir.x, lrDir.y);
-
-            const uLR = lrLen > 0 ? { x: lrDir.x / lrLen, y: lrDir.y / lrLen } : { x: -dir.y, y: dir.x };
-            const expandWidth = (targetWidth - currentWidth) / 2;
-
-            // 幅方向への復元補正
-            pLS = { x: pLS.x - uLR.x * expandWidth, y: pLS.y - uLR.y * expandWidth };
-            pRS = { x: pRS.x + uLR.x * expandWidth, y: pRS.y + uLR.y * expandWidth };
-            pRH = { x: pRH.x + uLR.x * expandWidth, y: pRH.y + uLR.y * expandWidth };
-            pLH = { x: pLH.x - uLR.x * expandWidth, y: pLH.y - uLR.y * expandWidth };
-          }
-
-          // 胴体前後の厚み方向への押し出し補正
-          const normal = { x: -dir.y, y: dir.x };
-          const expandThickness = expectedThickness / 2;
-
-          pLS = { x: pLS.x - normal.x * expandThickness, y: pLS.y - normal.y * expandThickness };
-          pRS = { x: pRS.x + normal.x * expandThickness, y: pRS.y + normal.y * expandThickness };
-          pRH = { x: pRH.x + normal.x * expandThickness, y: pRH.y + normal.y * expandThickness };
-          pLH = { x: pLH.x - normal.x * expandThickness, y: pLH.y - normal.y * expandThickness };
-        }
-      }
-
-      return [pLS, pRS, pRH, pLH];
+      return [
+        { x: ls.x, y: ls.y },
+        { x: rs.x, y: rs.y },
+        { x: rh.x, y: rh.y },
+        { x: lh.x, y: lh.y },
+      ];
     }
   }
 
-  // 骨格が取れない場合はBoundingBoxから四角形を代替作成
+  // 骨格が取れない場合はBoundingBoxから四角形を作成
   const box = person.boundingBox;
   if (box) {
     return [
@@ -332,7 +233,6 @@ export function isOrientedTogether(
   options: OrientationGroupingOptions = {}
 ): boolean {
   const fovAngle = options.fovAngle ?? DEFAULT_FOV_ANGLE;
-  const thicknessRatio = options.bodyThicknessRatio ?? DEFAULT_BODY_THICKNESS_RATIO;
 
   const dirA = personA.direction
     ? { x: personA.direction.x, y: personA.direction.y }
@@ -351,8 +251,8 @@ export function isOrientedTogether(
     return false;
   }
 
-  const quadA = getCorrectedTorsoQuad(personA, queueLine, thicknessRatio);
-  const quadB = getCorrectedTorsoQuad(personB, queueLine, thicknessRatio);
+  const quadA = getTorsoQuad(personA);
+  const quadB = getTorsoQuad(personB);
 
   if (!quadA || !quadB) return false;
 
