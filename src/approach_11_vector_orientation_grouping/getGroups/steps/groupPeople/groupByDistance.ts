@@ -1,4 +1,4 @@
-import { Groups, Person, Keypoint2D } from '../types';
+import { Groups, Person, Keypoint2D } from '../../types';
 import { QueueLine } from './estimateQueueLine';
 
 interface DistanceGroupingOptions {

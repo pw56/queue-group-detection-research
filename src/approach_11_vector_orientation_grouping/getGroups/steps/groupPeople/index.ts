@@ -1,4 +1,4 @@
-import { Groups, Person } from '../types';
+import { Groups, Person } from '../../types';
 import { estimateQueueLine } from './estimateQueueLine';
 import { groupByDistance } from './groupByDistance';
 import { groupByOrientation } from './groupByOrientation';
@@ -18,7 +18,7 @@ export function groupPeople(people: Person[]): Groups {
   const distanceGroups = groupByDistance(people, queueLine);
 
   // 子アルゴリズム 3: 体の向き（胴体ベクトル）を考慮した前後の連れ統合グループ分け
-  const finalGroups = groupByOrientation(distanceGroups);
+  const finalGroups = groupByOrientation(distanceGroups, queueLine);
 
   return finalGroups;
 }

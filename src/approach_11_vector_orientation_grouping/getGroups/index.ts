@@ -1,7 +1,7 @@
 import { Groups, GroupDetectionImageSource, Person } from './types';
-import { detectPeople } from './detectPeople';
-import { detectPoses } from './detectPoses';
-import { groupPeople } from './groupPeople';
+import { detectPeople } from './steps/detectPeople';
+import { detectPoses } from './steps/detectPoses';
+import { groupPeople } from './steps/groupPeople';
 
 // スコープ外で一度だけ配列を生成（OOM対策）
 const reusablePeople: Person[] = [];

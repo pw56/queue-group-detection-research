@@ -1,4 +1,4 @@
-import { Groups, Person, Keypoint2D } from '../types';
+import { Groups, Person, Keypoint2D } from '../../types';
 import { QueueLine } from './estimateQueueLine';
 
 /**
@@ -281,7 +281,7 @@ function calculateSightScore(
 /**
  * 2人間の相互認識・向き合いスコア（0.0 ～ 1.0）を計算する
  */
-export function calculateOrientationScore(
+function calculateOrientationScore(
   personA: Person,
   personB: Person,
   queueLine: QueueLine | null = null,

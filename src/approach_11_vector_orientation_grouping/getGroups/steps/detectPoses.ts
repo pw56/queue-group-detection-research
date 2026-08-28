@@ -1,5 +1,5 @@
-import { GroupDetectionImageSource, Person, Keypoint2D, DirectionVector, BoundingBoxRect } from './types';
-import { workerPoolManager } from './workers';
+import { GroupDetectionImageSource, Person, Keypoint2D, DirectionVector, BoundingBoxRect } from '../types';
+import { workerPoolManager } from '../workers';
 
 // キーポイントから身体の向き（2Dベクトル）を算出する関数
 function calculateBodyDirection(keypoints: Keypoint2D[]): DirectionVector {

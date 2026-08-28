@@ -1,5 +1,5 @@
-import { GroupDetectionImageSource, Person } from './types';
-import { workerPoolManager } from './workers';
+import { GroupDetectionImageSource, Person } from '../types';
+import { workerPoolManager } from '../workers';
 
 // 人物の検出
 export async function detectPeople(

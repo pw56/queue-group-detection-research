@@ -1,4 +1,4 @@
-import { Person, DirectionVector } from '../types';
+import { Person, DirectionVector } from '../../types';
 
 export interface QueueLine {
   /** 列の代表点 (全体中心など) */
