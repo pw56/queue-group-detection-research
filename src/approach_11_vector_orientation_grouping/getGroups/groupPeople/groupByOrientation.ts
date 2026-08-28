@@ -5,9 +5,9 @@ import { QueueLine } from './estimateQueueLine';
  * 【子アルゴリズム 3】体の向き・評価領域相互認識ベースの前後グループ化アルゴリズム
  *
  * 【LaTeX数式メモ】
- * 1. 胴体ベクトル (腰中点から肩中点への単位ベクトル):
- *    $$\boldsymbol{p}_{shoulder} = \frac{\boldsymbol{k}_{5} + \boldsymbol{k}_{6}}{2}, \quad \boldsymbol{p}_{hip} = \frac{\boldsymbol{k}_{11} + \boldsymbol{k}_{12}}{2}$$
- *    $$\boldsymbol{v}_{torso} = \frac{\boldsymbol{p}_{shoulder} - \boldsymbol{p}_{hip}}{\|\boldsymbol{p}_{shoulder} - \boldsymbol{p}_{hip}\|}$$
+ * 1. 胴体正面ベクトル (左肩から右肩への単位ベクトル $\boldsymbol{v}_{lr}$ に対する90度法線ベクトル):
+ *    $$\boldsymbol{v}_{lr} = \boldsymbol{k}_{6} - \boldsymbol{k}_{5}$$
+ *    $$\boldsymbol{v}_{torso} = \frac{(-v_{lr, y}, v_{lr, x})}{\|(-v_{lr, y}, v_{lr, x})\|}$$
  *
  * 2. 視界扇形領域 (Sector):
  *    $$\text{Sector}(\boldsymbol{p}, \boldsymbol{v}, R, \theta) = \{ \boldsymbol{x} \mid \|\boldsymbol{x} - \boldsymbol{p}\| \le R \ \land \ \frac{(\boldsymbol{x} - \boldsymbol{p}) \cdot \boldsymbol{v}}{\|\boldsymbol{x} - \boldsymbol{p}\|} \ge \cos(\theta / 2) \}$$
@@ -40,7 +40,46 @@ interface Sector {
 type TorsoQuad = [Point, Point, Point, Point];
 
 /**
- * 胴体の向き（両肩・両腰のキーポイント）から2D平面での方向ベクトルを取得する
+ * 人物の平均的な体の大きさ（縦幅/高さ）を算出する
+ * 鼻から足首までの距離、またはバウンディングボックスの高さ
+ */
+function estimatePersonBodySize(person: Person): number {
+  const keypoints = person.keypoints;
+  if (keypoints && keypoints.length > 16) {
+    const nose = keypoints[0];
+    const leftAnkle = keypoints[15];
+    const rightAnkle = keypoints[16];
+
+    const hasNose = nose && (nose.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD;
+    const leftAnkleValid = leftAnkle && (leftAnkle.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD;
+    const rightAnkleValid = rightAnkle && (rightAnkle.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD;
+
+    let ankleY: number | null = null;
+    if (leftAnkleValid && rightAnkleValid) {
+      ankleY = (leftAnkle.y + rightAnkle.y) / 2;
+    } else if (leftAnkleValid) {
+      ankleY = leftAnkle.y;
+    } else if (rightAnkleValid) {
+      ankleY = rightAnkle.y;
+    }
+
+    if (hasNose && ankleY !== null) {
+      const height = Math.abs(ankleY - nose.y);
+      if (height > 0) {
+        return height;
+      }
+    }
+  }
+
+  if (person.boundingBox && person.boundingBox.height > 0) {
+    return person.boundingBox.height;
+  }
+
+  return 200; // フォールバックデフォルト値
+}
+
+/**
+ * 両肩（または両腰）のキーポイントから、身体の正面（お腹側）を向く2D法線ベクトルを取得する
  */
 function getTorsoDirectionVector(keypoints?: Keypoint2D[]): Point | null {
   if (!keypoints || keypoints.length < 13) {
@@ -60,23 +99,31 @@ function getTorsoDirectionVector(keypoints?: Keypoint2D[]): Point | null {
     leftHip && (leftHip.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD &&
     rightHip && (rightHip.score ?? 0) >= KEYPOINT_SCORE_THRESHOLD;
 
-  if (hasShoulders && hasHips) {
-    const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
-    const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
-    const hipMidX = (leftHip.x + rightHip.x) / 2;
-    const hipMidY = (leftHip.y + rightHip.y) / 2;
+  let lrX = 0;
+  let lrY = 0;
 
-    const vx = shoulderMidX - hipMidX;
-    const vy = shoulderMidY - hipMidY;
-    const len = Math.hypot(vx, vy);
-
-    if (len === 0) {
-      return null;
-    }
-    return { x: vx / len, y: vy / len };
+  if (hasShoulders) {
+    // 左肩から右肩へのベクトル
+    lrX = rightShoulder.x - leftShoulder.x;
+    lrY = rightShoulder.y - leftShoulder.y;
+  } else if (hasHips) {
+    // 両肩が使えない場合は両腰から算出
+    lrX = rightHip.x - leftHip.x;
+    lrY = rightHip.y - leftHip.y;
+  } else {
+    return null;
   }
 
-  return null;
+  const len = Math.hypot(lrX, lrY);
+  if (len === 0) {
+    return null;
+  }
+
+  // 左右ベクトル (lrX, lrY) に垂直な法線ベクトル (-lrY, lrX) を求めることで正面（お腹側）の向きを定義
+  const normalX = -lrY / len;
+  const normalY = lrX / len;
+
+  return { x: normalX, y: normalY };
 }
 
 /**
@@ -264,7 +311,7 @@ export function isOrientedTogether(
   const posA = { x: boxA.originX + boxA.width / 2, y: boxA.originY + boxA.height / 2 };
   const posB = { x: boxB.originX + boxB.width / 2, y: boxB.originY + boxB.height / 2 };
 
-  // 全員自分のバウンディングボックスの横幅（width）を半径として適用
+  // 全員自分のバウンディングボックスの横幅（width）を判定半径として適用
   const radiusA = boxA.width;
   const radiusB = boxB.width;
 
