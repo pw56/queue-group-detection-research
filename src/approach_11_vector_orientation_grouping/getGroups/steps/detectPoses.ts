@@ -8,7 +8,7 @@ function calculateBodyDirection(keypoints: Keypoint2D[]): DirectionVector {
     return { x: 0, y: 0 };
   }
 
-  const findKp = (name: string) => keypoints.find(k => k.name === name && (k.score ?? 0) >= 0.2);
+  const findKp = (name: string) => keypoints.find(k => k.name === name /* && (k.score ?? 0) >= 0.2 */ );
 
   const leftShoulder = findKp('left_shoulder');
   const rightShoulder = findKp('right_shoulder');
