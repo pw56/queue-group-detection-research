@@ -8,7 +8,7 @@ import { UnionFind } from '../../utils/UnionFind';
 const MAX_INTERSECTION_DISTANCE_RATIO = 2.0;
 
 /** 体の向きの交差角度閾値（ラジアン）: 対向・交差を判定するための閾値（120度以上） */
-const ORIENTATION_ANGLE_THRESHOLD_RAD = (Math.PI * 2) / 3;
+const ORIENTATION_ANGLE_THRESHOLD_RAD = (Math.PI * 120) / 180;
 
 /** BoundingBox未定義時のデフォルト横幅 */
 const DEFAULT_BOUNDING_BOX_WIDTH = 100.0;
