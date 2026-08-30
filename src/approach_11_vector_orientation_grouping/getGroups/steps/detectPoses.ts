@@ -12,16 +12,59 @@ function calculateBodyDirection(keypoints: Keypoint2D[]): DirectionVector {
 
   const leftShoulder = findKp('left_shoulder');
   const rightShoulder = findKp('right_shoulder');
+  const leftHip = findKp('left_hip');
+  const rightHip = findKp('right_hip');
+  const leftAnkle = findKp('left_ankle');
+  const rightAnkle = findKp('right_ankle');
+  const leftEar = findKp('left_ear');
+  const rightEar = findKp('right_ear');
+  const leftEye = findKp('left_eye');
+  const rightEye = findKp('right_eye');
   const nose = findKp('nose');
 
   let vecX = 0;
   let vecY = 0;
 
   // 1. 両肩の結ぶ線に直交するベクトル（法線ベクトル）から胸の前方向を算出
+  // 何段階かあって、信頼度低かったら別のところを当たる
+
+  // 1. 両肩
   if (leftShoulder && rightShoulder) {
     const dx = leftShoulder.x - rightShoulder.x;
     const dy = leftShoulder.y - rightShoulder.y;
     // 90度回転させて体の前方ベクトルを取得 (-dy, dx)
+    vecX = -dy;
+    vecY = dx;
+  } else
+  
+  // 2. 腰の左右  
+  if (leftHip && rightHip) {
+    const dx = leftHip.x - rightHip.x;
+    const dy = leftHip.y - rightHip.y;
+    vecX = -dy;
+    vecY = dx;
+  } else
+  
+  //  3. 両足首
+  if (leftAnkle && rightAnkle) {
+    const dx = leftAnkle.x - rightAnkle.x;
+    const dy = leftAnkle.y - rightAnkle.y;
+    vecX = -dy;
+    vecY = dx;
+  } else
+    
+  // 4. 両耳
+  if (leftEar && rightEar) {
+    const dx = leftEar.x - rightEar.x;
+    const dy = leftEar.y - rightEar.y;
+    vecX = -dy;
+    vecY = dx;
+  } else
+  
+  // 5. 両目
+  if (leftEye && rightEye) {
+    const dx = leftEye.x - rightEye.x;
+    const dy = leftEye.y - rightEye.y;
     vecX = -dy;
     vecY = dx;
   }
