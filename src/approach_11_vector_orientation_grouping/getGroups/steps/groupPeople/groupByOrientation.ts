@@ -65,7 +65,7 @@ function checkOrientationIntersection(personA: Person, personB: Person): boolean
   const dot = Math.max(-1, Math.min(1, v1.x * v2.x + v1.y * v2.y));
   const angle = Math.acos(dot);
 
-  // 向かい合っている（120度〜180度）角度を満たしていない場合は除外
+  // 向かい合っている（閾値の角度〜180度）角度を満たしていない場合は除外
   if (angle < ORIENTATION_ANGLE_THRESHOLD_RAD) {
     return false;
   }
