@@ -16,21 +16,29 @@
    配列を順に走査し、判定した傾向（増減）から大きく逸脱する要素（例: 増加傾向の途中で急激に小さくなる人物）を非採用として除外します。
 
 有効データ集合（要素数 $N$）に対する平均座標 $(\bar{x}, \bar{y})$:
+
 $$\bar{x} = \frac{1}{N} \sum_{i=1}^N x_i, \quad \bar{y} = \frac{1}{N} \sum_{i=1}^N y_i$$
 
 ### (2) 底面座標の分布（PCA）による直線推定
 フィルタリング後の座標群から共分散行列の要素を算出し、主軸角度 $\theta_{\text{pca}}$ を求めます：
+
 $$S_{xx} = \sum_{i=1}^N (x_i - \bar{x})^2, \quad S_{yy} = \sum_{i=1}^N (y_i - \bar{y})^2, \quad S_{xy} = \sum_{i=1}^N (x_i - \bar{x})(y_i - \bar{y})$$
 
-$$\theta_{\text{pca}} = \frac{1}{2} \operatorname{atan2}\left(2 S_{xy}, S_{xx} - S_{yy}\right)$$
+$$\theta_{\text{pca}} = \frac{1}{2} \text{atan2}\left(2 S_{xy}, S_{xx} - S_{yy}\right)$$
 
 直線軸の無指向性ベクトル:
-$$\boldsymbol{d}_{\text{pca}} = (\cos\theta_{\text{pca}}, \sin\theta_{\text{pca}})$$
+
+$$\mathbf{d}_{\text{pca}} = (\cos\theta_{\text{pca}}, \sin\theta_{\text{pca}})$$
 
 ### (3) 横幅による前後向き（ベクトルの正負）確定
-有効データ内で横幅が最大の人物（最手前 $P_{\text{front}}$）から最小の人物（最奥 $P_{\text{back}}$）へ向かう参考ベクトル $\boldsymbol{v}_{\text{width}}$ を算出します：
-$$\boldsymbol{v}_{\text{width}} = \boldsymbol{p}_{\text{back}} - \boldsymbol{p}_{\text{front}}$$
+有効データ内で横幅が最大の人物（最手前 $P_{\text{front}}$）から最小の人物（最奥 $P_{\text{back}}$）へ向かう参考ベクトル $\mathbf{v}_{\text{width}}$ を算出します：
 
-内積 $\boldsymbol{d}_{\text{pca}} \cdot \boldsymbol{v}_{\text{width}}$ の符号に応じて向きを反転させ、手前→奥の向きへ正しく揃えます：
+$$\mathbf{v}_{\text{width}} = \mathbf{p}_{\text{back}} - \mathbf{p}_{\text{front}}$$
 
-$$\boldsymbol{d} = \begin{cases} \boldsymbol{d}_{\text{pca}} & (\boldsymbol{d}_{\text{pca}} \cdot \boldsymbol{v}_{\text{width}} \ge 0) \\ -\boldsymbol{d}_{\text{pca}} & (\boldsymbol{d}_{\text{pca}} \cdot \boldsymbol{v}_{\text{width}} < 0) \end{cases}$$
+内積
+
+$$\mathbf{d}_{\text{pca}} \cdot \mathbf{v}_{\text{width}}$$
+
+の符号に応じて向きを反転させ、手前→奥の向きへ正しく揃えます：
+
+$$\mathbf{d} = \begin{cases} \mathbf{d}_{\text{pca}} & (\mathbf{d}_{\text{pca}} \cdot \mathbf{v}_{\text{width}} \ge 0) \\ -\mathbf{d}_{\text{pca}} & (\mathbf{d}_{\text{pca}} \cdot \mathbf{v}_{\text{width}} < 0) \end{cases}$$
