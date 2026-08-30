@@ -12,7 +12,9 @@
 ### 2. 対向角度判定（に向かい合い判定）
 向かい合っている状態はベクトルの向きが反転（180° / $`\pi`$ rad 近辺）するため、角度条件を判定します。
 
-$$\theta = \arccos(\mathbf{d}_A \cdot \mathbf{d}_B) \ge \text{ORIENTATION\_ANGLE\_THRESHOLD\_RAD}$$
+```math
+$$\theta = \arccos(\mathbf{d}_A \cdot \mathbf{d}_B) \ge \mathtt{ORIENTATION\_ ANGLE\_ THRESHOLD\_ RAD}$$
+```
 
 ### 3. 延長線（Ray）の交点計算
 人物 $`A`$ および人物 $`B`$ の向きベクトルの延長線：
