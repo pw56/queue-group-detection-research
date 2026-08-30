@@ -3,9 +3,6 @@ import { detectPeople } from './steps/detectPeople';
 import { detectPoses } from './steps/detectPoses';
 import { groupPeople } from './steps/groupPeople';
 
-// スコープ外で一度だけ配列を生成（OOM対策）
-const reusablePeople: Person[] = [];
-
 /**
  * 画像から人物およびそのポーズ・向きを検出し、グループ分けを行って返す
  */
@@ -15,7 +12,7 @@ export async function getGroups(imageSource: GroupDetectionImageSource): Promise
   }
 
   try {
-    const peopleDetections = await detectPeople(imageSource, reusablePeople);
+    const peopleDetections = await detectPeople(imageSource);
     const peopleWithPoses = await detectPoses(imageSource, peopleDetections);
     const groups = groupPeople(peopleWithPoses);
     return groups;

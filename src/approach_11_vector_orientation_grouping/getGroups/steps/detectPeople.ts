@@ -4,10 +4,13 @@ import { cropImageAsImageBitmap } from '../utils/imageHelper';
 
 // 人物の検出
 export async function detectPeople(
-  imageSource: GroupDetectionImageSource,
-  outResult: Person[] = []
+  imageSource: GroupDetectionImageSource
 ): Promise<Person[]> {
   if (!imageSource) throw new Error("No input data exists");
+  
+  // 返却用の配列
+  // 引数で配列渡してもらうOOM対策はバグの温床なので廃案にした
+  const outResult: Person[] = [];
 
   const imgWidth = imageSource.naturalWidth || imageSource.width;
   const imgHeight = imageSource.naturalHeight || imageSource.height;
@@ -21,7 +24,6 @@ export async function detectPeople(
       imgHeight
     );
 
-    outResult.length = 0;
     for (let i = 0; i < people.length; i++) {
       outResult.push(people[i]);
     }
