@@ -8,7 +8,7 @@
 
 推定された列の方向ベクトル $\boldsymbol{d} = (u, v)$ と、これに直交する法線ベクトル（横並び方向） $\boldsymbol{n} = (-v, u)$ を用います。
 
-各人物 $i$ の代表点 $(x_i, y_i)$ は、信頼度（$\ge 0.5$）を満たす足首座標（両足首平均、または片足首）を使用します。両足首とも信頼度を満たさない場合は、バウンディングボックスの底辺中央点 $(x_i = \text{originX}_i + \frac{\text{width}_i}{2}, y_i = \text{originY}_i + \text{height}_i)$ を代替として使用します。
+各人物 $i$ の代表点 $(x_i, y_i)$ は、信頼度（ $\ge 0.5$ ）を満たす足首座標（両足首平均、または片足首）を使用します。両足首とも信頼度を満たさない場合は、バウンディングボックスの底辺中央点 $(x_i = \text{originX}_i + \frac{\text{width}_i}{2}, y_i = \text{originY}_i + \text{height}_i)$ を代替として使用します。
 
 人物 $i$ の相対位置ベクトル $\boldsymbol{r}_i = (x_i - \bar{x}, y_i - \bar{y})$ に対する射影：
 - **列方向成分（前後座標）**: $t_{line, i} = \boldsymbol{r}_i \cdot \boldsymbol{d}$
