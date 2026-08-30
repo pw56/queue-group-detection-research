@@ -1,5 +1,6 @@
 import { Groups, Person, Keypoint2D } from '../../types';
 import { QueueLine } from './estimateQueueLine';
+import { UnionFind } from '../../utils/UnionFind';
 
 interface DistanceGroupingOptions {
   /** 列の法線（横並び）方向における判定閾値（ピクセル） */
@@ -9,6 +10,9 @@ interface DistanceGroupingOptions {
 }
 
 const ANKLE_SCORE_THRESHOLD = 0.5;
+
+// 再利用可能な Union-Find インスタンス（OOM防止・GC低減）
+let sharedUnionFind: UnionFind | null = null;
 
 /**
  * MoveNetのキーポイント配列から足首の座標を取得する
@@ -105,30 +109,13 @@ export function groupByDistance(
     };
   });
 
-  // Union-Find 法（素集合データ構造）の準備
-  const parent = Array.from({ length: people.length }, (_, i) => i);
-
-  const find = (i: number): number => {
-    let root = i;
-    while (root !== parent[root]) {
-      root = parent[root];
-    }
-    let curr = i;
-    while (curr !== root) {
-      const nxt = parent[curr];
-      parent[curr] = root;
-      curr = nxt;
-    }
-    return root;
-  };
-
-  const union = (i: number, j: number): void => {
-    const rootI = find(i);
-    const rootJ = find(j);
-    if (rootI !== rootJ) {
-      parent[rootI] = rootJ;
-    }
-  };
+  // 共通 Union-Find のセットアップ
+  const count = people.length;
+  if (!sharedUnionFind) {
+    sharedUnionFind = new UnionFind(count);
+  } else {
+    sharedUnionFind.reset(count);
+  }
 
   // 全ペアの組み合わせにおいて横並び判定を実施
   for (let i = 0; i < personData.length; i++) {
@@ -149,7 +136,7 @@ export function groupByDistance(
       // 「列と直交する方向への広がり（deltaSide）が閾値以内」かつ
       // 「列方向の前後のズレ（deltaLine）が小さく同じ位置帯にいる」
       if (deltaSide <= dynamicSideThreshold && deltaLine <= lineThreshold) {
-        union(i, j);
+        sharedUnionFind.union(i, j);
       }
     }
   }
@@ -158,12 +145,15 @@ export function groupByDistance(
   const groupMap = new Map<number, Person[]>();
 
   for (let i = 0; i < people.length; i++) {
-    const root = find(i);
+    const root = sharedUnionFind.find(i);
     if (!groupMap.has(root)) {
       groupMap.set(root, []);
     }
     groupMap.get(root)!.push(people[i]);
   }
 
-  return Array.from(groupMap.values());
+  const result = Array.from(groupMap.values());
+  groupMap.clear();
+
+  return result;
 }

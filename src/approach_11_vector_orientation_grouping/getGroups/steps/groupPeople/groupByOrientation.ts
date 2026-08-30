@@ -1,4 +1,5 @@
 import { Person } from '../../types';
+import { UnionFind } from '../../utils/UnionFind';
 
 // ==========================================
 // 定数定義 (基準・閾値)
@@ -91,53 +92,6 @@ function checkOrientationIntersection(personA: Person, personB: Person): boolean
   const maxDistance = avgWidth * MAX_INTERSECTION_DISTANCE_RATIO;
 
   return t1 <= maxDistance && t2 <= maxDistance;
-}
-
-/**
- * Union-Find クラス（メモリ再利用可能設計）
- */
-class UnionFind {
-  #parent: number[];
-
-  constructor(size: number) {
-    this.#parent = new Array(size);
-    this.reset(size);
-  }
-
-  reset(size: number): void {
-    if (this.#parent.length < size) {
-      this.#parent = new Array(size);
-    }
-    for (let i = 0; i < size; i++) {
-      this.#parent[i] = i;
-    }
-  }
-
-  find(i: number): number {
-    let root = i;
-    while (root !== this.#parent[root]) {
-      root = this.#parent[root];
-    }
-    let curr = i;
-    while (curr !== root) {
-      const nxt = this.#parent[curr];
-      this.#parent[curr] = root;
-      curr = nxt;
-    }
-    return root;
-  }
-
-  union(i: number, j: number): void {
-    const rootI = this.find(i);
-    const rootJ = this.find(j);
-    if (rootI !== rootJ) {
-      this.#parent[rootI] = rootJ;
-    }
-  }
-
-  release(): void {
-    this.#parent = [];
-  }
 }
 
 // 再利用可能な Union-Find インスタンス（OOM防止）
