@@ -11,8 +11,12 @@ export class KalmanFilter {
   #vy = 0;
 
   #p00 = 1000;
+  #p02 = 0;
   #p11 = 1000;
+  #p13 = 0;
+  #p20 = 0;
   #p22 = 1000;
+  #p31 = 0;
   #p33 = 1000;
 
   #qPos = 1.0;
@@ -34,34 +38,55 @@ export class KalmanFilter {
     this.#y += this.#vy * dt;
 
     const dt2 = dt * dt;
-    this.#p00 += this.#p22 * dt2 + this.#qPos * dt;
-    this.#p11 += this.#p33 * dt2 + this.#qPos * dt;
-    this.#p22 += this.#qVel * dt;
-    this.#p33 += this.#qVel * dt;
+    const qPosDt = this.#qPos * dt;
+    const qVelDt = this.#qVel * dt;
+
+    this.#p00 += (this.#p20 + this.#p02) * dt + this.#p22 * dt2 + qPosDt;
+    this.#p02 += this.#p22 * dt;
+    this.#p20 += this.#p22 * dt;
+    this.#p22 += qVelDt;
+
+    this.#p11 += (this.#p31 + this.#p13) * dt + this.#p33 * dt2 + qPosDt;
+    this.#p13 += this.#p33 * dt;
+    this.#p31 += this.#p33 * dt;
+    this.#p33 += qVelDt;
 
     return { x: this.#x, y: this.#y };
   }
 
   update(measX: number, measY: number): { x: number; y: number } {
-    const k0 = this.#p00 / (this.#p00 + this.#rMeas);
-    const k1 = this.#p11 / (this.#p11 + this.#rMeas);
+    const S0 = this.#p00 + this.#rMeas;
+    const S1 = this.#p11 + this.#rMeas;
+
+    const k00 = this.#p00 / S0;
+    const k20 = this.#p20 / S0;
+
+    const k11 = this.#p11 / S1;
+    const k31 = this.#p31 / S1;
 
     const yx = measX - this.#x;
     const yy = measY - this.#y;
 
-    this.#x += k0 * yx;
-    this.#y += k1 * yy;
+    this.#x += k00 * yx;
+    this.#vx += k20 * yx;
 
-    const kvx = k0 * 0.1;
-    const kvy = k1 * 0.1;
+    this.#y += k11 * yy;
+    this.#vy += k31 * yy;
 
-    this.#vx += kvx * yx;
-    this.#vy += kvy * yy;
+    const p00Old = this.#p00;
+    const p02Old = this.#p02;
+    const p11Old = this.#p11;
+    const p13Old = this.#p13;
 
-    this.#p00 *= (1 - k0);
-    this.#p11 *= (1 - k1);
-    this.#p22 *= (1 - k0);
-    this.#p33 *= (1 - k1);
+    this.#p00 = (1 - k00) * p00Old;
+    this.#p02 = (1 - k00) * p02Old;
+    this.#p20 = this.#p20 - k20 * p00Old;
+    this.#p22 = this.#p22 - k20 * p02Old;
+
+    this.#p11 = (1 - k11) * p11Old;
+    this.#p13 = (1 - k11) * p13Old;
+    this.#p31 = this.#p31 - k31 * p11Old;
+    this.#p33 = this.#p33 - k31 * p13Old;
 
     this.#historyX.push(this.#x);
     this.#historyY.push(this.#y);

@@ -1,5 +1,5 @@
 import { Person } from '../../types';
-import { acquireCanvasContext, releaseCanvasContext } from '../../utils/canvasManager';
+import { acquireCanvasContext, releaseCanvasContext } from '../../canvasManager';
 
 export interface HSVColor {
   h: number;
@@ -67,18 +67,38 @@ function extractAverageHSV(
 
   const imageData = ctx.getImageData(x, y, w, h);
   const data = imageData.data;
-  let totalR = 0, totalG = 0, totalB = 0, count = 0;
+
+  let sinSum = 0;
+  let cosSum = 0;
+  let totalSat = 0;
+  let totalVal = 0;
+  let count = 0;
 
   for (let i = 0; i < data.length; i += 4) {
-    totalR += data[i];
-    totalG += data[i + 1];
-    totalB += data[i + 2];
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+
+    const hsv = rgbToHsv(r, g, b);
+    const rad = hsv.h * 2 * Math.PI;
+
+    sinSum += Math.sin(rad);
+    cosSum += Math.cos(rad);
+    totalSat += hsv.s;
+    totalVal += hsv.v;
     count++;
   }
 
   if (count === 0) return undefined;
 
-  return rgbToHsv(totalR / count, totalG / count, totalB / count);
+  let avgH = Math.atan2(sinSum / count, cosSum / count) / (2 * Math.PI);
+  if (avgH < 0) avgH += 1.0;
+
+  return {
+    h: avgH,
+    s: totalSat / count,
+    v: totalVal / count,
+  };
 }
 
 export async function extractFeatures(
@@ -94,23 +114,31 @@ export async function extractFeatures(
   const bboxMinSize = Math.min(bbox.width, bbox.height);
   const regionSize = Math.max(4, Math.floor(bboxMinSize * 0.1));
 
+  const sx = Math.max(0, Math.min(imgWidth - 1, Math.floor(bbox.originX)));
+  const sy = Math.max(0, Math.min(imgHeight - 1, Math.floor(bbox.originY)));
+  const sw = Math.min(imgWidth - sx, Math.floor(bbox.width));
+  const sh = Math.min(imgHeight - sy, Math.floor(bbox.height));
+
+  if (sw <= 0 || sh <= 0) return features;
+
   const ctx = acquireCanvasContext(FEATURE_CANVAS_SIZE, FEATURE_CANVAS_SIZE);
 
   try {
-    const scaleX = FEATURE_CANVAS_SIZE / imgWidth;
-    const scaleY = FEATURE_CANVAS_SIZE / imgHeight;
-
-    ctx.save();
-    ctx.scale(scaleX, scaleY);
-    ctx.drawImage(imageSource, 0, 0);
-    ctx.restore();
-
-    const scaledWidth = FEATURE_CANVAS_SIZE;
-    const scaledHeight = FEATURE_CANVAS_SIZE;
+    ctx.drawImage(
+      imageSource,
+      sx,
+      sy,
+      sw,
+      sh,
+      0,
+      0,
+      FEATURE_CANVAS_SIZE,
+      FEATURE_CANVAS_SIZE
+    );
 
     const getScaledPt = (ptX: number, ptY: number) => ({
-      x: ptX * scaleX,
-      y: ptY * scaleY,
+      x: ((ptX - sx) / sw) * FEATURE_CANVAS_SIZE,
+      y: ((ptY - sy) / sh) * FEATURE_CANVAS_SIZE,
     });
 
     const keypoints = person.keypoints || [];
@@ -124,7 +152,7 @@ export async function extractFeatures(
     const le = findKp('left_ear');
     const re = findKp('right_ear');
 
-    const scaledRegionSize = Math.max(2, Math.floor(regionSize * scaleX));
+    const scaledRegionSize = Math.max(2, Math.floor((regionSize / Math.min(sw, sh)) * FEATURE_CANVAS_SIZE));
 
     if (ls && rs && lh && rh) {
       const insetFactor = 0.2;
@@ -138,31 +166,31 @@ export async function extractFeatures(
 
       const innerLsX = lsScaled.x + (torsoCenterX - lsScaled.x) * insetFactor;
       const innerLsY = lsScaled.y + (torsoCenterY - lsScaled.y) * insetFactor;
-      features.leftShoulder = extractAverageHSV(ctx, innerLsX, innerLsY, scaledRegionSize, scaledWidth, scaledHeight);
+      features.leftShoulder = extractAverageHSV(ctx, innerLsX, innerLsY, scaledRegionSize, FEATURE_CANVAS_SIZE, FEATURE_CANVAS_SIZE);
 
       const innerRsX = rsScaled.x + (torsoCenterX - rsScaled.x) * insetFactor;
       const innerRsY = rsScaled.y + (torsoCenterY - rsScaled.y) * insetFactor;
-      features.rightShoulder = extractAverageHSV(ctx, innerRsX, innerRsY, scaledRegionSize, scaledWidth, scaledHeight);
+      features.rightShoulder = extractAverageHSV(ctx, innerRsX, innerRsY, scaledRegionSize, FEATURE_CANVAS_SIZE, FEATURE_CANVAS_SIZE);
 
       const innerLhX = lhScaled.x + (torsoCenterX - lhScaled.x) * insetFactor;
       const innerLhY = lhScaled.y + (torsoCenterY - lhScaled.y) * insetFactor;
-      features.leftHip = extractAverageHSV(ctx, innerLhX, innerLhY, scaledRegionSize, scaledWidth, scaledHeight);
+      features.leftHip = extractAverageHSV(ctx, innerLhX, innerLhY, scaledRegionSize, FEATURE_CANVAS_SIZE, FEATURE_CANVAS_SIZE);
 
       const innerRhX = rhScaled.x + (torsoCenterX - rhScaled.x) * insetFactor;
       const innerRhY = rhScaled.y + (torsoCenterY - rhScaled.y) * insetFactor;
-      features.rightHip = extractAverageHSV(ctx, innerRhX, innerRhY, scaledRegionSize, scaledWidth, scaledHeight);
+      features.rightHip = extractAverageHSV(ctx, innerRhX, innerRhY, scaledRegionSize, FEATURE_CANVAS_SIZE, FEATURE_CANVAS_SIZE);
     }
 
     const isFacingForward = !!nose || (person.direction ? person.direction.y > 0 : true);
 
     if (isFacingForward && nose) {
       const noseScaled = getScaledPt(nose.x, nose.y);
-      features.faceForward = extractAverageHSV(ctx, noseScaled.x, noseScaled.y, scaledRegionSize, scaledWidth, scaledHeight);
+      features.faceForward = extractAverageHSV(ctx, noseScaled.x, noseScaled.y, scaledRegionSize, FEATURE_CANVAS_SIZE, FEATURE_CANVAS_SIZE);
     } else if (!isFacingForward && le && re) {
       const headX = (le.x + re.x) / 2;
       const headY = (le.y + re.y) / 2;
       const headScaled = getScaledPt(headX, headY);
-      features.faceBackward = extractAverageHSV(ctx, headScaled.x, headScaled.y, scaledRegionSize, scaledWidth, scaledHeight);
+      features.faceBackward = extractAverageHSV(ctx, headScaled.x, headScaled.y, scaledRegionSize, FEATURE_CANVAS_SIZE, FEATURE_CANVAS_SIZE);
     }
 
     return features;
