@@ -1,8 +1,8 @@
 import { Float64RingBuffer } from '../../utils/ringBuffer';
 
-const MAX_TIMESTAMP_SAMPLES = 60;
+const MAX_TIMESTAMP_SAMPLES = 10;
 const timestampBuffer = new Float64RingBuffer(MAX_TIMESTAMP_SAMPLES);
-let defaultFps = 30;
+let defaultFps = 0;
 
 export function updateFps(timestamp: number): void {
   timestampBuffer.push(timestamp);
