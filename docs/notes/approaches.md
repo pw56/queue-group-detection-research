@@ -142,7 +142,6 @@
     - utils
       - imageHelper (使用するだけ)
       - ringBuffer.ts (新規、32ビットと64ビットのリングバッファのクラス、`Float32Array`や`Float64Array`の使い回しなどのOOM対策が保証されている)
-      - KalmanFilter.ts (新規、カルマンフィルターのクラス、内部で`Float64Array`のリングバッファのクラスを使用)
     - index.ts (トラッキングのステップを追加)
     - types/person.ts (Person型にプロパティ追加)
     - steps/trackPeople
@@ -151,6 +150,7 @@
       - TrackedPerson.ts
       - trackPeople.ts (トラッキング処理の中核)
       - extractFeatures.ts (色などの特徴を抽出するメソッド)
+      - KalmanFilter.ts (新規、カルマンフィルターのクラス、内部で`Float64Array`のリングバッファのクラスを使用)
 
 ## 注意事項
 - 連続稼働でOOMを防ぐため、全ての前後や現在の検出結果はスコープ外で変数を宣言して使い回し

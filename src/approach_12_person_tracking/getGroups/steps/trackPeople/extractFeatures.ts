@@ -142,7 +142,7 @@ export async function extractFeatures(
     });
 
     const keypoints = person.keypoints || [];
-    const findKp = (name: string) => keypoints.find((k) => k.name === name && (k.score ?? 0) >= 0.1);
+    const findKp = (name: string, minScore = 0.5) => keypoints.find((k) => k.name === name && (k.score ?? 0) >= minScore);
 
     const ls = findKp('left_shoulder');
     const rs = findKp('right_shoulder');
