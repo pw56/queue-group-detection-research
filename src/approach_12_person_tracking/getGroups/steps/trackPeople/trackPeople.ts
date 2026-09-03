@@ -32,7 +32,8 @@ export async function trackPeople(
     const prevCy = prevBbox.originY + prevBbox.height / 2;
     const bboxMinDim = Math.min(prevBbox.width, prevBbox.height);
 
-    const searchRadius = Math.max(20, bboxMinDim * (30 / fps));
+    const frameDurationSec = 1 / fps;
+    const searchRadius = bboxMinDim * frameDurationSec;
 
     let bestScore = Infinity;
     let bestMatchIdx = -1;

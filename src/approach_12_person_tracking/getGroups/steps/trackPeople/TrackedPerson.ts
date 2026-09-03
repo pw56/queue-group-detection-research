@@ -4,7 +4,7 @@ import { PersonBodyFeatures, extractFeatures, compareHSV } from './extractFeatur
 import { getFps } from './measureFps';
 
 const QUEUE_STATIONARY_TIME_THRESHOLD_MS = 2000;
-const MAX_MISSING_TIME_MS = 1500;
+const MAX_MISSING_TIME_SEC = 2;
 
 export class TrackedPerson {
   #id: string;
@@ -47,7 +47,10 @@ export class TrackedPerson {
   }
 
   shouldBeRemoved(): boolean {
-    return this.#missingDurationMs > MAX_MISSING_TIME_MS;
+    const fps = getFps();
+    const allowedMissingFrames = Math.ceil(MAX_MISSING_TIME_SEC * fps);
+    const missingFrames = (this.#missingDurationMs / 1000) * fps;
+    return missingFrames > allowedMissingFrames;
   }
 
   getPersonWithId(): Person | undefined {
