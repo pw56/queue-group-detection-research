@@ -1,7 +1,7 @@
 import { Groups, GroupDetectionImageSource, Person } from './types';
 import { detectPeople } from './steps/detectPeople';
 import { detectPoses } from './steps/detectPoses';
-import { trackPeopleStep } from './steps/trackPeople';
+import { trackPeople } from './steps/trackPeople';
 import { groupPeople } from './steps/groupPeople';
 
 /**
@@ -15,7 +15,7 @@ export async function getGroups(imageSource: GroupDetectionImageSource): Promise
   try {
     const peopleDetections = await detectPeople(imageSource);
     const peopleWithPoses = await detectPoses(imageSource, peopleDetections);
-    const trackedQueuePeople = await trackPeopleStep(imageSource, peopleWithPoses);
+    const trackedQueuePeople = await trackPeople(imageSource, peopleWithPoses);
     const groups = groupPeople(trackedQueuePeople);
     return groups;
   } catch (error) {

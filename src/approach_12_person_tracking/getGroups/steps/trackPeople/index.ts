@@ -2,7 +2,7 @@ import { GroupDetectionImageSource, Person } from '../../types';
 import { updateFps } from './measureFps';
 import { trackPeople as trackPeopleInternal } from './trackPeople';
 
-export async function trackPeopleStep(
+export async function trackPeople(
   imageSource: GroupDetectionImageSource,
   detectedPeople: Person[]
 ): Promise<Person[]> {
