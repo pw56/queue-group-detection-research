@@ -1,0 +1,157 @@
+import { Person } from '../../types';
+import { UnionFind } from '../../utils/UnionFind';
+
+// ==========================================
+// 定数定義 (基準・閾値)
+// ==========================================
+/** 延長線の交点までの最大距離倍率（バウンディングボックス平均幅に対する倍率） */
+const MAX_INTERSECTION_DISTANCE_RATIO = 2.0;
+
+/** 体の向きの交差角度閾値（ラジアン）: 対向・交差を判定するための閾値（50度以上） */
+const ORIENTATION_ANGLE_THRESHOLD_RAD = (Math.PI * 50) / 180;
+
+/** BoundingBox未定義時のデフォルト横幅 */
+const DEFAULT_BOUNDING_BOX_WIDTH = 100.0;
+
+// ==========================================
+// 再利用可能な内部変数 (OOM防止・GC低減)
+// ==========================================
+interface Point2D {
+  x: number;
+  y: number;
+}
+
+const p1: Point2D = { x: 0, y: 0 };
+const v1: Point2D = { x: 0, y: 0 };
+const p2: Point2D = { x: 0, y: 0 };
+const v2: Point2D = { x: 0, y: 0 };
+
+/**
+ * Personオブジェクトから中心座標と体の向きベクトル(Person.direction)を取得する helper
+ */
+function getPersonCenterAndDirection(person: Person, outCenter: Point2D, outDir: Point2D): boolean {
+  if (!person.boundingBox || !person.direction) {
+    return false;
+  }
+
+  // 中心座標（バウンディングボックスの中心）
+  outCenter.x = person.boundingBox.originX + person.boundingBox.width / 2;
+  outCenter.y = person.boundingBox.originY + person.boundingBox.height / 2;
+
+  // Person型に含まれる direction (x, y) を使用
+  const dirX = person.direction.x;
+  const dirY = person.direction.y;
+  const len = Math.hypot(dirX, dirY);
+
+  if (len === 0) {
+    return false;
+  }
+
+  outDir.x = dirX / len;
+  outDir.y = dirY / len;
+
+  return true;
+}
+
+/**
+ * 前後関係にある2人が向き合っている（対向角度かつ交点が指定距離以内）かを判定
+ */
+function checkOrientationIntersection(personA: Person, personB: Person): boolean {
+  if (!getPersonCenterAndDirection(personA, p1, v1) || !getPersonCenterAndDirection(personB, p2, v2)) {
+    return false;
+  }
+
+  // 1. 体の向きベクトル同士のなす角（対向判定）
+  const dot = Math.max(-1, Math.min(1, v1.x * v2.x + v1.y * v2.y));
+  const angle = Math.acos(dot);
+
+  // 向かい合っている（閾値の角度〜180度）角度を満たしていない場合は除外
+  if (angle < ORIENTATION_ANGLE_THRESHOLD_RAD) {
+    return false;
+  }
+
+  // 2. 延長線（レイ）の交点計算
+  const det = v1.x * v2.y - v1.y * v2.x;
+
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+
+  // 交差点までの距離パラメータ t1, t2 の計算
+  const t1 = (dx * v2.y - dy * v2.x) / det;
+  const t2 = (dx * v1.y - dy * v1.x) / det;
+
+  // 交点が互いの前方方向に存在するか (t1 >= 0 かつ t2 >= 0)
+  if (t1 < 0 || t2 < 0) {
+    return false;
+  }
+
+  // 3. 交点までの距離が閾値（平均横幅の2倍）以内かを判定
+  const widthA = personA.boundingBox?.width ?? DEFAULT_BOUNDING_BOX_WIDTH;
+  const widthB = personB.boundingBox?.width ?? DEFAULT_BOUNDING_BOX_WIDTH;
+  const avgWidth = (widthA + widthB) / 2;
+  const maxDistance = avgWidth * MAX_INTERSECTION_DISTANCE_RATIO;
+
+  return t1 <= maxDistance && t2 <= maxDistance;
+}
+
+// 再利用可能な Union-Find インスタンス（OOM防止）
+let sharedUnionFind: UnionFind | null = null;
+
+/**
+ * 子アルゴリズム 3: 体の向き(Person.direction)の交差および距離判定による前後グループ結合
+ */
+export function groupByOrientation(initialGroups: Person[][]): Person[][] {
+  if (initialGroups.length <= 1) {
+    return initialGroups;
+  }
+
+  const groupCount = initialGroups.length;
+
+  if (!sharedUnionFind) {
+    sharedUnionFind = new UnionFind(groupCount);
+  } else {
+    sharedUnionFind.reset(groupCount);
+  }
+
+  // 隣り合う前後のグループ間のみ比較
+  for (let g = 0; g < groupCount - 1; g++) {
+    const groupA = initialGroups[g];
+    const groupB = initialGroups[g + 1];
+
+    let isConnected = false;
+
+    // 前後のグループ間で誰か1人でも相手方向へ交差していたら連れ判定
+    for (let i = 0; i < groupA.length; i++) {
+      for (let j = 0; j < groupB.length; j++) {
+        if (checkOrientationIntersection(groupA[i], groupB[j])) {
+          isConnected = true;
+          break;
+        }
+      }
+      if (isConnected) {
+        break;
+      }
+    }
+
+    if (isConnected) {
+      sharedUnionFind.union(g, g + 1);
+    }
+  }
+
+  // グループ統合
+  const mergedMap = new Map<number, Person[]>();
+  for (let i = 0; i < groupCount; i++) {
+    const root = sharedUnionFind.find(i);
+    if (!mergedMap.has(root)) {
+      mergedMap.set(root, []);
+    }
+    mergedMap.get(root)!.push(...initialGroups[i]);
+  }
+
+  const result: Person[][] = Array.from(mergedMap.values());
+
+  // 解放処理（参照クリア）
+  mergedMap.clear();
+
+  return result;
+}
