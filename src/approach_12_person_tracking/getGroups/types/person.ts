@@ -23,6 +23,7 @@ export interface DirectionVector {
 
 // 人物情報型（全てのプロパティが任意）
 export interface Person {
+  id?: string;
   boundingBox?: BoundingBoxRect;
   keypoints?: Keypoint2D[];
   direction?: DirectionVector;

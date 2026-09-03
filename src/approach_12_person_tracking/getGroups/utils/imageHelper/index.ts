@@ -3,6 +3,11 @@ import {
   releaseCanvasContext,
 } from "./canvasManager";
 
+export {
+  acquireCanvasContext,
+  releaseCanvasContext,
+} from "./canvasManager";
+
 /**
  * 画像を指定したサイズにリサイズして ImageBitmap として取得します。
  * (Canvasを経由せず createImageBitmap のオプションで直接リサイズ)
