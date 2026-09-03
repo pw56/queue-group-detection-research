@@ -150,7 +150,7 @@
       - TrackedPerson.ts
       - trackPeople.ts (トラッキング処理の中核)
       - extractFeatures.ts (色などの特徴を抽出するメソッド)
-      - KalmanFilter.ts (新規、カルマンフィルターのクラス、内部で`Float64Array`のリングバッファのクラスを使用)
+      - KalmanFilterForPeople.ts (新規、カルマンフィルターのクラス、内部で`Float64Array`のリングバッファのクラスを使用)
 
 ## 注意事項
 - 連続稼働でOOMを防ぐため、全ての前後や現在の検出結果はスコープ外で変数を宣言して使い回し
