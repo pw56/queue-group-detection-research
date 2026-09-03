@@ -93,13 +93,18 @@ export async function trackPeople(
   }
 
   const queueMembers: Person[] = [];
+  // for (const tracked of trackedPeoplePool) {
+  //   if (tracked.isQueueMember()) {
+  //     const personWithId = tracked.getPersonWithId();
+  //     if (personWithId) {
+  //       queueMembers.push(personWithId);
+  //     }
+  //   }
+  // }
+
   for (const tracked of trackedPeoplePool) {
-    if (tracked.isQueueMember()) {
-      const personWithId = tracked.getPersonWithId();
-      if (personWithId) {
-        queueMembers.push(personWithId);
-      }
-    }
+    const personWithId = tracked.getPersonWithId();
+    queueMembers.push(personWithId!);
   }
 
   return queueMembers;
