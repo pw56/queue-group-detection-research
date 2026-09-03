@@ -1,5 +1,5 @@
 import { Person } from '../../types';
-import { KalmanFilter } from '../../utils/KalmanFilter';
+import { KalmanFilterForPeople } from './KalmanFilterForPeople';
 import { PersonBodyFeatures, extractFeatures, compareHSV } from './extractFeatures';
 import { getFps } from './measureFps';
 
@@ -8,7 +8,7 @@ const MAX_MISSING_TIME_MS = 1500;
 
 export class TrackedPerson {
   #id: string;
-  #kalmanFilter: KalmanFilter | null = null;
+  #kalmanFilter: KalmanFilterForPeople | null = null;
   #latestPerson?: Person;
   #features?: PersonBodyFeatures;
   #lastSeenTimestamp: number;
@@ -24,7 +24,7 @@ export class TrackedPerson {
     if (initialPerson.boundingBox) {
       const centerX = initialPerson.boundingBox.originX + initialPerson.boundingBox.width / 2;
       const centerY = initialPerson.boundingBox.originY + initialPerson.boundingBox.height / 2;
-      this.#kalmanFilter = new KalmanFilter(centerX, centerY);
+      this.#kalmanFilter = new KalmanFilterForPeople(centerX, centerY);
     }
 
     this.#updateState(initialPerson, timestamp);

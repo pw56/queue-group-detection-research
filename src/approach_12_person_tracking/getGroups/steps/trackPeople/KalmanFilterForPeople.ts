@@ -1,10 +1,10 @@
-import { Float64RingBuffer } from './ringBuffer';
+import { Float64RingBuffer } from '../../utils/ringBuffer';
 
 /**
  * 2D（x, y, vx, vy）のカルマンフィルター実装
  * リングバッファを使用して内部配列のメモリ確保を最小化
  */
-export class KalmanFilter {
+export class KalmanFilterForPeople {
   #x = 0;
   #y = 0;
   #vx = 0;
