@@ -67,27 +67,41 @@ export class TrackedPerson {
   ): Promise<void> {
     const dt = (timestamp - this.#lastSeenTimestamp) / 1000;
 
+    let predictedPos = { x: 0, y: 0 };
     if (this.#kalmanFilter && dt > 0) {
-      this.#kalmanFilter.predict(dt);
+      predictedPos = this.#kalmanFilter.predict(dt);
     }
 
     if (matchedPerson) {
       this.#missingDurationMs = 0;
-      this.#lastSeenTimestamp = timestamp;
-      this.#latestPerson = matchedPerson;
-
+      
+      let correctedPos = predictedPos;
       if (matchedPerson.boundingBox && this.#kalmanFilter) {
         const cx = matchedPerson.boundingBox.originX + matchedPerson.boundingBox.width / 2;
         const cy = matchedPerson.boundingBox.originY + matchedPerson.boundingBox.height / 2;
-        this.#kalmanFilter.update(cx, cy);
+        correctedPos = this.#kalmanFilter.update(cx, cy);
       }
 
-      const newFeatures = await extractFeatures(imageSource, matchedPerson, imgWidth, imgHeight);
+      // カルマンフィルターの補正座標を Person オブジェクトに反映
+      const updatedPerson = { ...matchedPerson };
+      if (updatedPerson.boundingBox) {
+        updatedPerson.boundingBox = {
+          ...updatedPerson.boundingBox,
+          originX: correctedPos.x - updatedPerson.boundingBox.width / 2,
+          originY: correctedPos.y - updatedPerson.boundingBox.height / 2,
+        };
+      }
+      this.#latestPerson = updatedPerson;
+
+      const newFeatures = await extractFeatures(imageSource, updatedPerson, imgWidth, imgHeight);
       this.#mergeFeatures(newFeatures);
     } else {
       this.#missingDurationMs += (timestamp - this.#lastSeenTimestamp);
       this.#latestPerson = undefined;
     }
+
+    // タイムスタンプを常に最新に更新（dtの膨張を抑止）
+    this.#lastSeenTimestamp = timestamp;
 
     this.#evaluateQueueStatus(timestamp);
   }
