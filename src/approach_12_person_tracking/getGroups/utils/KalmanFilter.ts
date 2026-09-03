@@ -52,8 +52,8 @@ export class KalmanFilter {
     this.#x += k0 * yx;
     this.#y += k1 * yy;
 
-    const kvx = (this.#p22 * dt_inv_dummy(k0)) / (this.#p00 + this.#rMeas);
-    const kvy = (this.#p33 * dt_inv_dummy(k1)) / (this.#p11 + this.#rMeas);
+    const kvx = k0 * 0.1;
+    const kvy = k1 * 0.1;
 
     this.#vx += kvx * yx;
     this.#vy += kvy * yy;
@@ -80,8 +80,4 @@ export class KalmanFilter {
   get historyY(): Float64RingBuffer {
     return this.#historyY;
   }
-}
-
-function dt_inv_dummy(k: number): number {
-  return k * 0.1;
 }

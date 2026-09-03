@@ -1,5 +1,5 @@
 import { Person } from '../../types';
-import { acquireCanvasContext, releaseCanvasContext } from '../../utils/canvasManager';
+import { acquireCanvasContext, releaseCanvasContext } from '../../canvasManager';
 
 export interface HSVColor {
   h: number;

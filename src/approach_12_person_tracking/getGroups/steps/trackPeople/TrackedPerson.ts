@@ -1,11 +1,10 @@
 import { Person } from '../../types';
-import { KalmanFilter } from '../../utils/KalmanFiletr';
+import { KalmanFilter } from '../../utils/KalmanFilter';
 import { PersonBodyFeatures, extractFeatures, compareHSV } from './extractFeatures';
 import { getFps } from './measureFps';
 
 const QUEUE_STATIONARY_TIME_THRESHOLD_MS = 2000;
 const MAX_MISSING_TIME_MS = 1500;
-const COLOR_MATCH_THRESHOLD = 0.35;
 
 export class TrackedPerson {
   #id: string;
@@ -28,7 +27,7 @@ export class TrackedPerson {
       this.#kalmanFilter = new KalmanFilter(centerX, centerY);
     }
 
-    this.updateState(initialPerson, timestamp);
+    this.#updateState(initialPerson, timestamp);
   }
 
   get id(): string {
@@ -161,7 +160,7 @@ export class TrackedPerson {
     return avgDist;
   }
 
-  private updateState(person: Person, timestamp: number): void {
+  #updateState(person: Person, timestamp: number): void {
     this.#latestPerson = person;
     this.#lastSeenTimestamp = timestamp;
   }
