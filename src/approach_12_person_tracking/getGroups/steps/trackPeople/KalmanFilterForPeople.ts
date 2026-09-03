@@ -88,6 +88,10 @@ export class KalmanFilterForPeople {
     this.#p31 = this.#p31 - k31 * p11Old;
     this.#p33 = this.#p33 - k31 * p13Old;
 
+    // 対称性を確保して数値誤差の蓄積を防止
+    this.#p20 = this.#p02;
+    this.#p31 = this.#p13;
+
     this.#historyX.push(this.#x);
     this.#historyY.push(this.#y);
 
