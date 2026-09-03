@@ -1,9 +1,9 @@
-name: Build approach_11_vector_orientation_grouping
+name: Build approach_12_person_tracking
 
 on:
   push:
     paths:
-      - 'src/approach_11_vector_orientation_grouping/**'
+      - 'src/approach_12_person_tracking/**'
 
 # GitHub Pages へのデプロイに必要な権限を設定
 permissions:
@@ -14,4 +14,4 @@ jobs:
   build-and-deploy:
     uses: ./.github/workflows/build-and-deploy.yml
     with:
-      directory: ./src/approach_11_vector_orientation_grouping
+      directory: ./src/approach_12_person_tracking
