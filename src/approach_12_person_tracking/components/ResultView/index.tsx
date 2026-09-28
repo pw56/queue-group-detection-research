@@ -16,6 +16,7 @@ const POSE_CONNECTIONS: [number, number][] = [
 ];
 
 const MIN_KEYPOINT_ALPHA = 0.1;
+const MAX_ID_LENGTH = 8;
 
 export const ResultView = ({
   mediaSource,
@@ -84,8 +85,43 @@ export const ResultView = ({
           // croppedBoundingBox が存在する場合にオフセット座標を計算
           const offsetX = croppedBoundingBox ? croppedBoundingBox.x : 0;
           const offsetY = croppedBoundingBox ? croppedBoundingBox.y : 0;
-          ctx.strokeStyle = 'green';
+          const boxColor = 'green';
+          ctx.strokeStyle = boxColor;
           ctx.strokeRect(originX + offsetX, originY + offsetY, w, h);
+
+          // 人物IDの描画（バウンディングボックスの内側左上）
+          if (person.id !== undefined && person.id !== null) {
+            const rawId = String(person.id);
+            const displayId = rawId.length > MAX_ID_LENGTH
+              ? `${rawId.slice(0, MAX_ID_LENGTH)}...`
+              : rawId;
+
+            ctx.save();
+            ctx.font = '12px sans-serif';
+            ctx.textBaseline = 'top';
+
+            const textMetrics = ctx.measureText(displayId);
+            const paddingX = 4;
+            const paddingY = 2;
+            const bgWidth = textMetrics.width + paddingX * 2;
+            const bgHeight = 12 + paddingY * 2;
+
+            const labelX = originX + offsetX;
+            const labelY = originY + offsetY;
+
+            // IDラベルの背景（バウンディングボックス枠線色と同じ）
+            ctx.fillStyle = boxColor;
+            ctx.fillRect(labelX, labelY, bgWidth, bgHeight);
+
+            // 文字描画（縁描画が先で、後に塗りつぶし）
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 2;
+            ctx.fillStyle = 'white';
+            ctx.strokeText(displayId, labelX + paddingX, labelY + paddingY);
+            ctx.fillText(displayId, labelX + paddingX, labelY + paddingY);
+
+            ctx.restore();
+          }
 
           // 人物ごとにポーズ検出の骨格を描画
           if (person.keypoints) {
