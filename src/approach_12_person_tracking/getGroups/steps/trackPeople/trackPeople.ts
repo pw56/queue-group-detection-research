@@ -20,7 +20,6 @@ export async function trackPeople(
   );
 
   const matchedDetectedIndices = new Set<number>();
-  const matchedTrackedIndices = new Set<number>();
 
   for (let i = 0; i < trackedPeoplePool.length; i++) {
     const tracked = trackedPeoplePool[i];
@@ -64,7 +63,6 @@ export async function trackPeople(
 
     if (bestMatchIdx !== -1) {
       matchedDetectedIndices.add(bestMatchIdx);
-      matchedTrackedIndices.add(i);
 
       await tracked.updateFrame(
         imageSource,
@@ -93,18 +91,12 @@ export async function trackPeople(
   }
 
   const queueMembers: Person[] = [];
-  // for (const tracked of trackedPeoplePool) {
-  //   if (tracked.isQueueMember()) {
-  //     const personWithId = tracked.getPersonWithId();
-  //     if (personWithId) {
-  //       queueMembers.push(personWithId);
-  //     }
-  //   }
-  // }
 
   for (const tracked of trackedPeoplePool) {
     const personWithId = tracked.getPersonWithId();
-    queueMembers.push(personWithId!);
+    if (personWithId) {
+      queueMembers.push(personWithId);
+    }
   }
 
   return queueMembers;
