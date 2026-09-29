@@ -7,9 +7,18 @@
 論文内で考案したグループ検出のアプローチの挙動を、ブラウザ上で検証できるデモページです。
 ローカルでの環境構築を必要とせず、各アプローチによる検出結果の違いを確認できます。
 
-- **アプローチ1 (ベースライン手法)**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_01_baseline/dist)
-- **アプローチ2 (事前指定の関心領域（ROI）による空間制限手法)**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_02_roi/dist)
-- **アプローチ3 (顔検出に基づく存在判定手法)**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_03_face_detection/dist)
+- **アプローチ1 (ベースライン手法)**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_01_baseline)
+- **アプローチ2 (事前指定の関心領域（ROI）による空間制限手法)**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_02_roi)
+- **アプローチ3 (顔検出に基づく存在判定手法)**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_03_face_detection)
+- **アプローチ4 ()**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_04_pose_detection)
+- **アプローチ5 ()**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_05_object_pose_hybrid)
+- **アプローチ6 ()**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_06_min_size_enforcer)
+- **アプローチ7 ()**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_07_deduplication)
+- **アプローチ8 ()**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_08_vertical_fragment_consolidation)
+- **アプローチ9 ()**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_09_orientation_distance_grouping)
+- **アプローチ10 ()**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_10_change_detection_model)
+- **アプローチ11 ()**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_11_vector_orientation_grouping)
+- **アプローチ12 ()**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_12_person_tracking)
 
 ## 推奨環境
 ### 論文執筆
