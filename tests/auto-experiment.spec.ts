@@ -19,8 +19,15 @@ test('実験スクリプトの実行', async () => {
 
       try {
         // 研究用のWebサイトを開く
-        await page.goto(approach.targetUrl);
-        await page.waitForLoadState('networkidle');
+        for (let i = 0; i < 3; i++) {
+          try {
+            await page.goto(approach.targetUrl, { waitUntil: 'domcontentloaded' });
+            break;
+          } catch (e) {
+            if (i === 2) throw e;
+            await page.waitForTimeout(1000);
+          }
+        }
 
         // 【手順1】指定した秒数待つ
         console.log(`${CONFIG.initialWaitSeconds}秒間、待機します...`);
@@ -108,8 +115,10 @@ test('実験スクリプトの実行', async () => {
     })
   );
 
-  // すべての組み合わせを並列で実行
-  await Promise.all(tasks.map((task) => task()));
+  // すべての組み合わせを順番に実行
+  for (const task of tasks) {
+    await task();
+  }
 
   // 終了処理
   await browser.close();
