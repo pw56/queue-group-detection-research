@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 import StreamZip from 'node-stream-zip';
-import * as fs from 'fs';
+import * as fs from 'node:fs';
 import { CONFIG } from './config'; // 設定ファイルをインポート
 
 (async () => {
@@ -91,6 +91,5 @@ import { CONFIG } from './config'; // 設定ファイルをインポート
   await Promise.all(tasks.map((task) => task()));
 
   // 終了処理
-  await page.waitForTimeout(2000);
   await browser.close();
 })();
