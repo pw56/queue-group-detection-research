@@ -3,7 +3,7 @@ import { chromium } from 'playwright';
 import StreamZip from 'node-stream-zip';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { CONFIG } from './config'; // 設定ファイルをインポート
+import { CONFIG } from './experiment-config'; // 設定ファイルをインポート
 
 test('実験スクリプトの実行', async () => {
   // 実験処理が完了するまでタイムアウトを無効化（0 = 制限なし）
@@ -53,7 +53,16 @@ test('実験スクリプトの実行', async () => {
           await page.mouse.move(nextX, nextY, { steps: 5 }); // 滑らかに動かす
         }
         await page.mouse.up(); // ペンを離す
-        await page.waitForTimeout(1000);
+        await page.locator('video').evaluate((video: HTMLVideoElement) => {
+          return new Promise<void>((resolve) => {
+            if (video.ended) {
+              resolve();
+            } else {
+              video.addEventListener('ended', () => resolve(), { once: true });
+            }
+          });
+        });
+        await page.waitForTimeout(3000);
 
         // 【手順4】結果ダウンロードボタンを押す（ファイルの保存）
         console.log('ダウンロードボタンをクリックします...');
