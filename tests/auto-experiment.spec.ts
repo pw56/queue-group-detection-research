@@ -6,6 +6,9 @@ import * as path from 'node:path';
 import { CONFIG } from './config'; // 設定ファイルをインポート
 
 test('実験スクリプトの実行', async () => {
+  // 実験処理が完了するまでタイムアウトを無効化（0 = 制限なし）
+  test.setTimeout(0);
+  
   const browser = await chromium.launch();
 
   // 組み合わせごとの処理を定義
