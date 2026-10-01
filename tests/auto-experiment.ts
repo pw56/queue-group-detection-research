@@ -1,4 +1,6 @@
 import { chromium } from 'playwright';
+import StreamZip from 'node-stream-zip';
+import * as fs from 'fs';
 import { CONFIG } from './config'; // 設定ファイルをインポート
 
 (async () => {
@@ -64,6 +66,19 @@ import { CONFIG } from './config'; // 設定ファイルをインポート
       // 指定したファイル名でローカルに保存する
       await download.saveAs(approach.fileName);
       console.log(`ファイルを保存しました: ${approach.fileName}`);
+
+      // ZIPファイルを解凍して元ファイルを削除
+      try {
+        const zip = new StreamZip.async({ file: approach.fileName });
+        await zip.extract(null, './');
+        await zip.close();
+        console.log(`ファイルを解凍しました: ${approach.fileName}`);
+
+        fs.unlinkSync(approach.fileName);
+        console.log(`元のZIPファイルを削除しました: ${approach.fileName}`);
+      } catch (err) {
+        console.error(`ZIP解凍処理に失敗しました: ${approach.fileName}`, err);
+      }
 
       await page.waitForTimeout(1000);
     }
