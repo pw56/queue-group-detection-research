@@ -41,6 +41,9 @@ test('実験スクリプトの実行', async () => {
         const canvas = page.locator('canvas');
         await canvas.waitFor({ state: 'visible' });
 
+        // 描画および内部処理が安定するまで少し待機
+        await page.waitForTimeout(2000);
+
         // Canvas要素生存確認
         const box = await canvas.boundingBox();
         if (!box) {
