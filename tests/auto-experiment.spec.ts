@@ -36,7 +36,7 @@ test('実験スクリプトの実行', async () => {
         // 【手順2】ファイルのアップロード
         console.log('ファイルをアップロードしています...');
         await page.locator('input[type="file"]').setInputFiles(mediaPath);
-        await page.waitForTimeout(1000); // 描画の安定待ち
+        await page.waitForTimeout(5000); // 描画の安定待ち
 
         // Canvas要素の位置（左上の絶対座標）を取得してズレを防止
         const canvas = page.locator('canvas');
@@ -49,14 +49,14 @@ test('実験スクリプトの実行', async () => {
 
         // 【手順3】多角形ROIを自動でなぞる
         console.log('多角形ROIをなぞっています...');
-        const startX = box.x + CONFIG.roiPoints[0].x;
-        const startY = box.y + CONFIG.roiPoints[0].y;
+        const startX = CONFIG.roiPoints[0].x;
+        const startY = CONFIG.roiPoints[0].y;
         await page.mouse.move(startX, startY);
         await page.mouse.down(); // ペンを画面につける
 
         for (let i = 1; i < CONFIG.roiPoints.length; i++) {
-          const nextX = box.x + CONFIG.roiPoints[i].x;
-          const nextY = box.y + CONFIG.roiPoints[i].y;
+          const nextX = CONFIG.roiPoints[i].x;
+          const nextY = CONFIG.roiPoints[i].y;
           await page.mouse.move(nextX, nextY, { steps: 5 }); // 滑らかに動かす
         }
         await page.mouse.up(); // ペンを離す
