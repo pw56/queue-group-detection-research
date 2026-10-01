@@ -5,8 +5,11 @@ export const CONFIG = {
 
   // 2. アップロードする画像または動画ファイルのパス
   mediaPath: [
-    'my_image1.png',
-    'my_image2.png'
+    'input_media/standard.png',
+    'input_media/crowded.png',
+    'input_media/strangers.png',
+    'input_media/various_clothes.png',
+    'input_media/queue_video.mp4'
   ],
 
   // 3. なぞる多角形の座標リスト (Canvasの左上を 0,0 としたピクセル値)
