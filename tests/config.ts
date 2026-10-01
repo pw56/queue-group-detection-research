@@ -4,7 +4,10 @@ export const CONFIG = {
   initialWaitSeconds: 10,
 
   // 2. アップロードする画像または動画ファイルのパス
-  mediaPath: 'my_image.png',
+  mediaPath: [
+    'my_image1.png',
+    'my_image2.png'
+  ],
 
   // 3. なぞる多角形の座標リスト (Canvasの左上を 0,0 としたピクセル値)
   roiPoints: [
@@ -18,7 +21,10 @@ export const CONFIG = {
   downloadButtonName: '実験結果をダウンロード',
 
   // 5. 研究用WebサイトのURL
-  targetUrl: 'http://localhost:3000',
+  targetUrl: [
+    'http://localhost:3000',
+    'http://localhost:3001'
+  ],
   
   // 6. ダウンロードした結果を保存するファイル名
   saveAsName: 'experimental_results.zip'
