@@ -60,15 +60,21 @@ test('実験スクリプトの実行', async () => {
           await page.mouse.move(nextX, nextY, { steps: 5 }); // 滑らかに動かす
         }
         await page.mouse.up(); // ペンを離す
-        await page.locator('video').evaluate((video: HTMLVideoElement) => {
-          return new Promise<void>((resolve) => {
-            if (video.ended) {
-              resolve();
-            } else {
-              video.addEventListener('ended', () => resolve(), { once: true });
-            }
+
+        // 動画ファイルの場合のみ、動画の再生終了を待機する
+        const ext = path.extname(mediaPath).toLowerCase();
+        if (['.mp4', '.webm', '.ogg', '.mov'].includes(ext)) {
+          await page.locator('video').evaluate((video: HTMLVideoElement) => {
+            return new Promise<void>((resolve) => {
+              if (video.ended) {
+                resolve();
+              } else {
+                video.addEventListener('ended', () => resolve(), { once: true });
+              }
+            });
           });
-        });
+        }
+
         await page.waitForTimeout(3000);
 
         // 【手順4】結果ダウンロードボタンを押す（ファイルの保存）
