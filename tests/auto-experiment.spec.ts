@@ -36,10 +36,12 @@ test('実験スクリプトの実行', async () => {
         // 【手順2】ファイルのアップロード
         console.log('ファイルをアップロードしています...');
         await page.locator('input[type="file"]').setInputFiles(mediaPath);
-        await page.waitForTimeout(5000); // 描画の安定待ち
-
-        // Canvas要素の位置（左上の絶対座標）を取得してズレを防止
+        
+        // Canvas要素を取得し、画面に表示されるまで待機する
         const canvas = page.locator('canvas');
+        await canvas.waitFor({ state: 'visible' });
+
+        // Canvas要素生存確認
         const box = await canvas.boundingBox();
         if (!box) {
           console.error('Canvas要素が見つかりませんでした。');
