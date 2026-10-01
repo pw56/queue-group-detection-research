@@ -7,14 +7,14 @@ import { CONFIG } from './config'; // 設定ファイルをインポート
   const context = await browser.newContext();
   const page = await context.newPage();
 
-  for (let targetUrlIndex = 0; targetUrlIndex < CONFIG.targetUrl.length; targetUrlIndex++) {
-    const targetUrl = CONFIG.targetUrl[targetUrlIndex];
+  for (let approachIndex = 0; approachIndex < CONFIG.approaches.length; approachIndex++) {
+    const approach = CONFIG.approaches[approachIndex];
 
     for (let mediaPathIndex = 0; mediaPathIndex < CONFIG.mediaPath.length; mediaPathIndex++) {
       const mediaPath = CONFIG.mediaPath[mediaPathIndex];
 
       // 研究用のWebサイトを開く
-      await page.goto(targetUrl);
+      await page.goto(approach.targetUrl);
       await page.waitForLoadState('networkidle');
 
       // 【手順1】指定した秒数待つ
@@ -62,9 +62,8 @@ import { CONFIG } from './config'; // 設定ファイルをインポート
       const download = await downloadPromise;
       
       // 指定したファイル名でローカルに保存する
-      const saveAsName = `url${targetUrlIndex + 1}_media${mediaPathIndex + 1}_${CONFIG.saveAsName}`;
-      await download.saveAs(saveAsName);
-      console.log(`ファイルを保存しました: ${saveAsName}`);
+      await download.saveAs(approach.fileName);
+      console.log(`ファイルを保存しました: ${approach.fileName}`);
 
       await page.waitForTimeout(1000);
     }

@@ -20,12 +20,15 @@ export const CONFIG = {
   // 4. ダウンロードボタンのテキスト（環境に合わせて変更してください）
   downloadButtonName: '実験結果をダウンロード',
 
-  // 5. 研究用WebサイトのURL
-  targetUrl: [
-    'http://localhost:3000',
-    'http://localhost:3001'
-  ],
-  
-  // 6. ダウンロードした結果を保存するファイル名
-  saveAsName: 'experimental_results.zip'
+  // 5. アプローチ設定（対象WebサイトのURLと保存用ファイル名）
+  approaches: [
+    {
+      targetUrl: 'http://localhost:3000',
+      fileName: 'experimental_results_approach1.zip'
+    },
+    {
+      targetUrl: 'http://localhost:3001',
+      fileName: 'experimental_results_approach2.zip'
+    }
+  ]
 };
