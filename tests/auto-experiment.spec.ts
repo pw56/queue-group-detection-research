@@ -1,12 +1,12 @@
+import { test } from '@playwright/test';
 import { chromium } from 'playwright';
 import StreamZip from 'node-stream-zip';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { CONFIG } from './config'; // 設定ファイルをインポート
 
-(async () => {
-  // ブラウザを起動（動きが見えるように headless: false）
-  const browser = await chromium.launch({ headless: false });
+test('実験スクリプトの実行', async () => {
+  const browser = await chromium.launch();
 
   // 組み合わせごとの処理を定義
   const tasks = CONFIG.approaches.flatMap((approach) =>
@@ -101,4 +101,4 @@ import { CONFIG } from './config'; // 設定ファイルをインポート
 
   // 終了処理
   await browser.close();
-})();
+});
