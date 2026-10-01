@@ -1,6 +1,7 @@
 import { chromium } from 'playwright';
 import StreamZip from 'node-stream-zip';
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { CONFIG } from './config'; // 設定ファイルをインポート
 
 (async () => {
@@ -62,22 +63,30 @@ import { CONFIG } from './config'; // 設定ファイルをインポート
         
         // ダウンロード処理の完了を待つ
         const download = await downloadPromise;
+
+        // 保存先ディレクトリパスの構築
+        const approachName = path.parse(approach.fileName).name;
+        const mediaName = path.parse(mediaPath).name;
+        const outputDir = path.join('experimental_results', approachName, mediaName);
+        fs.mkdirSync(outputDir, { recursive: true });
+
+        const tempZipPath = path.join(outputDir, approach.fileName);
         
         // 指定したファイル名でローカルに保存する
-        await download.saveAs(approach.fileName);
-        console.log(`ファイルを保存しました: ${approach.fileName}`);
+        await download.saveAs(tempZipPath);
+        console.log(`ファイルを保存しました: ${tempZipPath}`);
 
         // ZIPファイルを解凍して元ファイルを削除
         try {
-          const zip = new StreamZip.async({ file: approach.fileName });
-          await zip.extract(null, './');
+          const zip = new StreamZip.async({ file: tempZipPath });
+          await zip.extract(null, outputDir);
           await zip.close();
-          console.log(`ファイルを解凍しました: ${approach.fileName}`);
+          console.log(`ファイルを解凍しました: ${outputDir}`);
 
-          fs.unlinkSync(approach.fileName);
-          console.log(`元のZIPファイルを削除しました: ${approach.fileName}`);
+          fs.unlinkSync(tempZipPath);
+          console.log(`元のZIPファイルを削除しました: ${tempZipPath}`);
         } catch (err) {
-          console.error(`ZIP解凍処理に失敗しました: ${approach.fileName}`, err);
+          console.error(`ZIP解凍処理に失敗しました: ${tempZipPath}`, err);
         }
 
         await page.waitForTimeout(1000);
