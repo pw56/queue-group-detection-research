@@ -9,7 +9,13 @@ test('実験スクリプトの実行', async () => {
   // 実験処理が完了するまでタイムアウトを無効化（0 = 制限なし）
   test.setTimeout(0);
   
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({
+  args: [
+    '--enable-unsafe-webgpu',       // WebGPUを有効化
+    '--use-gl=angle',               // グラフィックスバックエンドの設定
+    '--ignore-gpu-blocklist',       // GPUの互換性制限を解除
+  ]
+});
 
   // 組み合わせごとの処理を定義
   const tasks = CONFIG.approaches.flatMap((approach) =>
