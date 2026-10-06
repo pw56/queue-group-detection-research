@@ -109,7 +109,7 @@ export const cropImage = (
 
     // 3. 高解像度の HTMLImageElement を生成して返却
     const clippedImage = new Image();
-    clippedImage.onload = () => resolve({ croppedImage: clippedImage, boundingBox }); // CropResult オブジェクトを返却
+    clippedImage.onload = () => resolve({ croppedImage: clippedImage, boundingBox, roiContour: points }); // CropResult オブジェクトを返却
     clippedImage.onerror = () => reject(new Error('HTMLImageElementの生成に失敗しました。'));
     clippedImage.src = trimmedCanvas.toDataURL('image/png');
   });
