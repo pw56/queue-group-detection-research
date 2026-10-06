@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import './global.css';
 import { getGroups, Groups } from './getGroups';
 import { ResultView } from './components/ResultView';
@@ -7,7 +7,8 @@ import {
   addInputMediaFile,
   addExtractedFrameAsPng,
   addAnnotatedImageAsPng,
-  addObjectAsJson,
+  addDetectedGroupsAsJson,
+  addRoiContourAsJson,
   downloadZip
 } from './utils/exportExperimentData';
 import { ImageCropper, ImageCropperRef, CropResult, CroppedBoundingBox } from './ImageCropper';
@@ -15,18 +16,25 @@ import { ImageCropper, ImageCropperRef, CropResult, CroppedBoundingBox } from '.
 // 動画用のグローバルなタイムスタンプ
 // 動画のEffect内の変数だとバウンディングボックスの方で使えないのでグローバル
 let videoTimestamp: number = -1;
-const imageTimestamp: number = 0; // 画像のタイムスタンプは固定
+const imageTimestamp: number = 1; // 画像のタイムスタンプは 1 に固定
 
 const App = () => {
   // アップロードされたメディアの管理用
   const [mediaSrc, setMediaSrc] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
   
+  // 任意のROI輪郭データ(Points)を保持
+  const [roiPoints, setRoiPoints] = useState<number[] | null>(null);
+  const [roiFileName, setRoiFileName] = useState<string | null>(null);
+
   // ループ処理で参照するためのRef
   const imageRef = useRef<HTMLImageElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const cropperRef = useRef<ImageCropperRef | null>(null);
   
+  // ImageCropper のレイアウト計算完了を待機するPromise管理用
+  const cropperReadyResolverRef = useRef<(() => void) | null>(null);
+
   // Canvas生成完了を通知するコールバック
   const resolveCanvasRef = useRef<(() => void) | null>(null);
   
@@ -38,6 +46,14 @@ const App = () => {
   // ダウンロードボタン制御用
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   
+  // ImageCropper が描画準備完了した際のイベントハンドラ
+  const handleCropperReady = useCallback(() => {
+    if (cropperReadyResolverRef.current) {
+      cropperReadyResolverRef.current();
+      cropperReadyResolverRef.current = null;
+    }
+  }, []);
+
   // ファイル選択時のハンドラ
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -84,6 +100,23 @@ const App = () => {
     }
   };
 
+  // 任意: ROI輪郭JSON選択時のハンドラ
+  const handleRoiFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const points = JSON.parse(text);
+      if (Array.isArray(points)) {
+        setRoiPoints(points);
+        setRoiFileName(file.name);
+      }
+    } catch (error) {
+      console.error('ROI輪郭JSONの読み込みに失敗しました:', error);
+    }
+  };
+
   // 切り取り範囲が更新・決定された時のハンドラ
   const handleCropChange = async (cropResult: CropResult) => {
     if (mediaType === 'image') {
@@ -102,7 +135,10 @@ const App = () => {
       
       addExtractedFrameAsPng(await imageToBlobAsync(cropResult.croppedImage, 'image/png') as Blob, timestamp);
       setGroups(detectedGroups);
-      addObjectAsJson(detectedGroups, timestamp);
+      addDetectedGroupsAsJson(detectedGroups, timestamp);
+      if (cropResult.roiContour) {
+        addRoiContourAsJson(cropResult.roiContour, timestamp);
+      }
     }
   };
 
@@ -113,7 +149,7 @@ const App = () => {
     };
   }, [mediaSrc]);
 
-  // 画像用の1回限りの処理
+  // 画像用の1回限りの処理 (2フレーム分連続で処理を実行)
   useEffect(() => {
     if (mediaType === 'image' && imageRef.current) {
       const processImage = async () => {
@@ -125,19 +161,60 @@ const App = () => {
         await rawImg.decode().catch(() => {});
         setMediaFrame(rawImg);
 
-        // 2. レンダリング後に cropperRef が利用可能になるため、クロップ画像を取得（取得できなければ元画像）
-        let inputElement: HTMLImageElement = rawElement;
-        if (cropperRef.current) {
-          const result = await cropperRef.current.getClippedImage();
-          inputElement = result.croppedImage;
-          setCroppedBoundingBox(result.boundingBox);
+        // 2. ImageCropperの初期表示レイアウト計算完了イベントを待機
+        await new Promise<void>((resolve) => {
+          cropperReadyResolverRef.current = resolve;
+        });
+
+        // cropperRef.current が確実にインスタンスを指すまで最大10回（500ms）待機する安全ガード
+        let retries = 0;
+        while (!cropperRef.current && retries < 10) {
+          await new Promise((r) => setTimeout(r, 50));
+          retries++;
         }
 
-        const detectedGroups = await getGroups(inputElement);
-        
-        addExtractedFrameAsPng(await imageToBlobAsync(inputElement, 'image/png') as Blob, imageTimestamp);
-        setGroups(detectedGroups);
-        addObjectAsJson(detectedGroups, imageTimestamp);
+        // --- 内部的な共通実行ヘルパー関数 ---
+        const executeFrameProcessing = async () => {
+          let inputElement: HTMLImageElement = rawElement;
+          if (roiPoints && roiPoints.length >= 6) {
+            // ROIが存在する場合は強制的に適用し、切り抜き後の画像を検出対象にする
+            if (cropperRef.current) {
+              const cropResult = await cropperRef.current.setRoiContour(roiPoints);
+              if (cropResult && cropResult.croppedImage) {
+                inputElement = cropResult.croppedImage;
+                setCroppedBoundingBox(cropResult.boundingBox);
+                if (cropResult.roiContour) {
+                  addRoiContourAsJson(cropResult.roiContour, imageTimestamp);
+                }
+              }
+            }
+          } else if (cropperRef.current) {
+            const result = await cropperRef.current.getClippedImage();
+            if (result && result.croppedImage) {
+              inputElement = result.croppedImage;
+              setCroppedBoundingBox(result.boundingBox);
+              if (result.roiContour) {
+                addRoiContourAsJson(result.roiContour, imageTimestamp);
+              }
+            }
+          }
+
+          // 切り抜いた要素（または元画像）に対してグループ検出を実行
+          const detectedGroups = await getGroups(inputElement);
+          
+          addExtractedFrameAsPng(await imageToBlobAsync(inputElement, 'image/png') as Blob, imageTimestamp);
+          setGroups(detectedGroups);
+          addDetectedGroupsAsJson(detectedGroups, imageTimestamp);
+        };
+
+        // 【1回目の処理（1フレーム目扱い）】
+        await executeFrameProcessing();
+
+        // 1フレーム目と2フレーム目の間に短いインターバルを設ける
+        await new Promise((r) => setTimeout(r, 50));
+
+        // 【2回目の処理（2フレーム目扱い・タイムスタンプは1で出力）】
+        await executeFrameProcessing();
       };
       
       // 画像の読み込み完了を待って処理、または既に読み込み済みの場合は即時実行
@@ -147,7 +224,7 @@ const App = () => {
         imageRef.current.onload = processImage;
       }
     }
-  }, [mediaType, mediaSrc]);
+  }, [mediaType, mediaSrc, roiPoints]);
 
   // 1秒ごとにメディアからデータを取得してグループ数検出メソッドに流すタイマー
   useEffect(() => {
@@ -171,18 +248,50 @@ const App = () => {
           // 1. まず元フレームを mediaFrame にセットして ImageCropper を確実にレンダリングさせる
           setMediaFrame(rawImg);
 
-          // 2. cropperRef がある場合は切り抜き画像を、なければ元のフレーム画像を使用
+          // 2. ImageCropperのレイアウト計算完了イベントを待機
+          await new Promise<void>((resolve) => {
+            cropperReadyResolverRef.current = resolve;
+          });
+
+          // cropperRef.current が確実にインスタンスを指すまで最大10回（500ms）待機する安全ガード
+          let retries = 0;
+          while (!cropperRef.current && retries < 10) {
+            await new Promise((r) => setTimeout(r, 50));
+            retries++;
+          }
+
+          // 3. 事前にROI輪郭が用意されていれば注入、なければ通常読み込み
           let processedImg: HTMLImageElement = rawImg;
           if (cropperRef.current) {
-            const result = await cropperRef.current.getClippedImage();
-            processedImg = result.croppedImage;
-            setCroppedBoundingBox(result.boundingBox);
+            if (roiPoints && roiPoints.length >= 6) {
+              const cropResult = await cropperRef.current.setRoiContour(roiPoints);
+              if (cropResult && cropResult.croppedImage) {
+                processedImg = cropResult.croppedImage;
+                setCroppedBoundingBox(cropResult.boundingBox);
+                if (cropResult.roiContour && videoTimestamp !== 0) {
+                  addRoiContourAsJson(cropResult.roiContour, videoTimestamp);
+                }
+              }
+            } else {
+              const result = await cropperRef.current.getClippedImage();
+              if (result && result.croppedImage) {
+                processedImg = result.croppedImage;
+                setCroppedBoundingBox(result.boundingBox);
+                if (result.roiContour && videoTimestamp !== 0) {
+                  addRoiContourAsJson(result.roiContour, videoTimestamp);
+                }
+              }
+            }
           }
 
           const detectedGroups = await getGroups(processedImg);
-          addExtractedFrameAsPng(await imageToBlobAsync(processedImg, 'image/png') as Blob, videoTimestamp);
+          if (videoTimestamp !== 0) {
+            addExtractedFrameAsPng(await imageToBlobAsync(processedImg, 'image/png') as Blob, videoTimestamp);
+          }
           setGroups(detectedGroups);
-          addObjectAsJson(detectedGroups, videoTimestamp);
+          if (videoTimestamp !== 0) {
+            addDetectedGroupsAsJson(detectedGroups, videoTimestamp);
+          }
         }
       }
     };
@@ -191,32 +300,47 @@ const App = () => {
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate);
     };
-  }, [mediaType, mediaSrc]);
+  }, [mediaType, mediaSrc, roiPoints]);
 
   return (
     /* 元のCSS設定（透明背景、中央配置、スクロールバー非表示、フォント） */
     <main className="flex h-screen w-screen items-center justify-center bg-transparent overflow-hidden font-sans">
       
       {/* ファイル入力 */}
-      {!mediaSrc && (
-        <>
-          <input 
-            id="file-upload"
-            type="file" 
-            accept="image/*,video/*" 
-            onChange={handleFileChange}
-            className="hidden"
-          />
-          <label 
-            htmlFor="file-upload" 
-            className="absolute inset-0 m-auto h-fit w-fit cursor-pointer select-none border border-gray-400 bg-white px-4 py-2 rounded shadow hover:bg-gray-50 text-gray-700"
-          >
-            ファイルを選択
-          </label>
-        </>
-      )}
-
-      {mediaSrc && (
+      {!mediaSrc ? (
+        <div className="absolute inset-0 m-auto h-fit w-fit flex flex-col gap-4 items-center">
+          <div>
+            <input 
+              id="file-upload"
+              type="file" 
+              accept="image/*,video/*" 
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            <label 
+              htmlFor="file-upload" 
+              className="cursor-pointer select-none border border-gray-400 bg-white px-4 py-2 rounded shadow hover:bg-gray-50 text-gray-700 block text-center"
+            >
+              入力する画像・動画をアップロード
+            </label>
+          </div>
+          <div>
+            <input 
+              id="roi-file-upload"
+              type="file" 
+              accept=".json" 
+              onChange={handleRoiFileChange}
+              className="hidden"
+            />
+            <label 
+              htmlFor="roi-file-upload" 
+              className="cursor-pointer select-none border border-gray-400 bg-white px-4 py-2 rounded shadow hover:bg-gray-50 text-gray-700 block text-center"
+            >
+              {roiFileName ? `選択中: ${roiFileName}` : 'ROI処理する輪郭のデータをアップロード (任意)'}
+            </label>
+          </div>
+        </div>
+      ) : (
         <>
 
           {/* 入力データ(画像) */}
@@ -247,6 +371,7 @@ const App = () => {
                 ref={cropperRef}
                 imageElement={mediaFrame}
                 onCropChange={handleCropChange}
+                onReady={handleCropperReady}
                 className="w-full h-1/2"
               />
             )}
@@ -257,6 +382,9 @@ const App = () => {
               croppedBoundingBox={croppedBoundingBox}
               onCanvasGenerated={(canvas) => {
                 (async () => {
+                  if (mediaType === 'video' && videoTimestamp === 0) {
+                    return;
+                  }
                   await addAnnotatedImageAsPng(
                     await canvasToBlob(canvas, 'image/png') as Blob,
                     mediaType === 'image' ? imageTimestamp : videoTimestamp
