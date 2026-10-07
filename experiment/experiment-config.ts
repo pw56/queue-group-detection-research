@@ -27,21 +27,12 @@ export const CONFIG = {
     }
   ],
 
-  // 3. なぞる多角形の座標リスト (Canvasの左上を 0,0 としたピクセル値)
-  roiPoints: [
-    { x: 962, y: 508 }, // スタート地点
-    { x: 887, y: 532 }, // 2つ目の角
-    { x: 785, y: 528 }, // 3つ目の角
-    { x: 365, y: 350 }, // 4つ目の角
-    { x: 353, y: 75  }, // 5つ目の角
-    { x: 645, y: 67  }, // 6つ目の角
-    { x: 992, y: 95  }  // 最後にスタート地点に戻って閉じる
-  ],
-
-  // 4. ダウンロードボタンのテキスト（環境に合わせて変更してください）
+  // 3. ファイル入力要素およびボタンの表示テキスト
+  mediaInputLabel: '入力する画像・動画をアップロード',
+  roiJsonInputLabel: 'ROI処理する輪郭のデータをアップロード (任意)',
   downloadButtonName: '実験結果をダウンロード',
 
-  // 5. アプローチ設定（対象WebサイトのURLと保存用ファイル名）
+  // 4. アプローチ設定（対象WebサイトのURLと保存用ファイル名）
   approaches: [
     {
       targetUrl: 'https://pw56.github.io/queue-group-detection-research/src/approach_01_baseline',

@@ -67,12 +67,12 @@ test('実験スクリプトの実行', async () => {
         // CONFIG.approachesの2回目以降（approachIndex >= 1）の場合、先にROI JSONをアップロード
         if (approachIndex >= 1 && roiJsonPath) {
           console.log('ROI処理する輪郭のデータをアップロードしています...');
-          await page.getByLabel('ROI処理する輪郭のデータをアップロード (任意)').setInputFiles(roiJsonPath);
+          await page.getByLabel(CONFIG.roiJsonInputLabel).setInputFiles(roiJsonPath);
         }
 
         // 【手順2】ファイルのアップロード
         console.log('ファイルをアップロードしています...');
-        await page.getByLabel('入力する画像・動画をアップロード').setInputFiles(mediaPath);
+        await page.getByLabel(CONFIG.mediaInputLabel).setInputFiles(mediaPath);
         
         // Canvas要素を取得し、画面に表示されるまで待機する
         const canvas = page.locator('canvas');
@@ -88,20 +88,6 @@ test('実験スクリプトの実行', async () => {
           await context.close();
           return;
         }
-
-        // 【手順3】多角形ROIを自動でなぞる
-        console.log('多角形ROIをなぞっています...');
-        const startX = CONFIG.roiPoints[0].x;
-        const startY = CONFIG.roiPoints[0].y;
-        await page.mouse.move(startX, startY);
-        await page.mouse.down(); // ペンを画面につける
-
-        for (let i = 1; i < CONFIG.roiPoints.length; i++) {
-          const nextX = CONFIG.roiPoints[i].x;
-          const nextY = CONFIG.roiPoints[i].y;
-          await page.mouse.move(nextX, nextY, { steps: 5 }); // 滑らかに動かす
-        }
-        await page.mouse.up(); // ペンを離す
 
         // 動画ファイルの場合のみ、動画の再生終了を待機する
         const ext = path.extname(mediaPath).toLowerCase();
@@ -120,7 +106,7 @@ test('実験スクリプトの実行', async () => {
 
         await page.waitForTimeout(3000);
 
-        // 【手順4】結果ダウンロードボタンを押す（ファイルの保存）
+        // 【手順3】結果ダウンロードボタンを押す（ファイルの保存）
         console.log('ダウンロードボタンをクリックします...');
         
         // Playwrightでダウンロードイベントを待ち受ける状態を作る
