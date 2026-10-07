@@ -6,24 +6,24 @@ export const CONFIG = {
   // 2. アップロードする画像または動画ファイルのパスと個別のROI JSONの設定
   mediaList: [
     {
-      mediaPath: 'input_media/standard.png',
-      roiFilePath: 'input_media/standard_roi.json'
+      mediaPath: 'input_data/media_files/standard.png',
+      roiFilePath: 'input_data/roi_contours/standard.json'
     },
     {
-      mediaPath: 'input_media/crowded.png',
-      roiFilePath: 'input_media/crowded_roi.json'
+      mediaPath: 'input_data/media_files/crowded.png',
+      roiFilePath: 'input_data/roi_contours/crowded.json'
     },
     {
-      mediaPath: 'input_media/strangers.png',
-      roiFilePath: 'input_media/strangers_roi.json'
+      mediaPath: 'input_data/media_files/strangers.png',
+      roiFilePath: 'input_data/roi_contours/strangers.json'
     },
     {
-      mediaPath: 'input_media/various_clothes.png',
-      roiFilePath: 'input_media/various_clothes_roi.json'
+      mediaPath: 'input_data/media_files/various_clothes.png',
+      roiFilePath: 'input_data/roi_contours/various_clothes.json'
     },
     {
-      mediaPath: 'input_media/queue_video.mp4',
-      roiFilePath: 'input_media/queue_video_roi.json'
+      mediaPath: 'input_data/media_files/queue_video.mp4',
+      roiFilePath: 'input_data/roi_contours/queue_video.json'
     }
   ],
 
