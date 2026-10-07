@@ -89,9 +89,9 @@ test('実験スクリプトの実行', async () => {
           return;
         }
 
-        // 動画ファイルの場合のみ、動画の再生終了を待機する
         const ext = path.extname(mediaPath).toLowerCase();
         if (['.mp4', '.webm', '.ogg', '.mov'].includes(ext)) {
+          // 動画ファイルの場合、動画の再生終了を待機する
           const videoLocator = page.locator('video');
           await videoLocator.waitFor({ state: 'attached' });
           await page.waitForFunction(
@@ -102,6 +102,19 @@ test('実験スクリプトの実行', async () => {
             await videoLocator.elementHandle(),
             { timeout: 0 }
           );
+        } else {
+          // 画像ファイルの場合、画像の読み込み完了を待機する
+          const imgLocator = page.locator('img');
+          if (await imgLocator.count() > 0) {
+            await page.waitForFunction(
+              (img) => {
+                const imgEl = img as HTMLImageElement;
+                return imgEl.complete && imgEl.naturalWidth !== 0;
+              },
+              await imgLocator.elementHandle(),
+              { timeout: 0 }
+            );
+          }
         }
 
         await page.waitForTimeout(3000);
