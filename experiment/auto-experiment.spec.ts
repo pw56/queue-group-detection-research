@@ -43,7 +43,7 @@ test('実験スクリプトの実行', async () => {
 
     const processItem = async (item: typeof CONFIG.mediaList[number]) => {
       const mediaPath = item.mediaPath;
-      const roiJsonPath = item.roiJsonPath;
+      const roiFilePath = item.roiFilePath;
 
       const context = await browser.newContext();
       const page = await context.newPage();
@@ -65,9 +65,9 @@ test('実験スクリプトの実行', async () => {
         await page.waitForTimeout(CONFIG.initialWaitSeconds * 1000);
 
         // CONFIG.approachesの2回目以降（approachIndex >= 1）の場合、先にROI JSONをアップロード
-        if (approachIndex >= 1 && roiJsonPath) {
+        if (approachIndex >= 1 && roiFilePath) {
           console.log('ROI処理する輪郭のデータをアップロードしています...');
-          await page.getByLabel(CONFIG.roiJsonInputLabel).setInputFiles(roiJsonPath);
+          await page.getByLabel(CONFIG.roiJsonInputLabel).setInputFiles(roiFilePath);
         }
 
         // 【手順2】ファイルのアップロード

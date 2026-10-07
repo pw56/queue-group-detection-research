@@ -7,23 +7,23 @@ export const CONFIG = {
   mediaList: [
     {
       mediaPath: 'input_media/standard.png',
-      roiJsonPath: 'input_media/standard_roi.json'
+      roiFilePath: 'input_media/standard_roi.json'
     },
     {
       mediaPath: 'input_media/crowded.png',
-      roiJsonPath: 'input_media/crowded_roi.json'
+      roiFilePath: 'input_media/crowded_roi.json'
     },
     {
       mediaPath: 'input_media/strangers.png',
-      roiJsonPath: 'input_media/strangers_roi.json'
+      roiFilePath: 'input_media/strangers_roi.json'
     },
     {
       mediaPath: 'input_media/various_clothes.png',
-      roiJsonPath: 'input_media/various_clothes_roi.json'
+      roiFilePath: 'input_media/various_clothes_roi.json'
     },
     {
       mediaPath: 'input_media/queue_video.mp4',
-      roiJsonPath: 'input_media/queue_video_roi.json'
+      roiFilePath: 'input_media/queue_video_roi.json'
     }
   ],
 
