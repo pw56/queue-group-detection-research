@@ -3,13 +3,28 @@ export const CONFIG = {
   // 1. 最初に指定した秒数待つ（秒単位で指定）
   initialWaitSeconds: 10,
 
-  // 2. アップロードする画像または動画ファイルのパス
-  mediaPath: [
-    'input_media/standard.png',
-    'input_media/crowded.png',
-    'input_media/strangers.png',
-    'input_media/various_clothes.png',
-    'input_media/queue_video.mp4'
+  // 2. アップロードする画像または動画ファイルのパスと個別のROI JSONの設定
+  mediaList: [
+    {
+      mediaPath: 'input_media/standard.png',
+      roiJsonPath: 'input_media/standard_roi.json'
+    },
+    {
+      mediaPath: 'input_media/crowded.png',
+      roiJsonPath: 'input_media/crowded_roi.json'
+    },
+    {
+      mediaPath: 'input_media/strangers.png',
+      roiJsonPath: 'input_media/strangers_roi.json'
+    },
+    {
+      mediaPath: 'input_media/various_clothes.png',
+      roiJsonPath: 'input_media/various_clothes_roi.json'
+    },
+    {
+      mediaPath: 'input_media/queue_video.mp4',
+      roiJsonPath: 'input_media/queue_video_roi.json'
+    }
   ],
 
   // 3. なぞる多角形の座標リスト (Canvasの左上を 0,0 としたピクセル値)

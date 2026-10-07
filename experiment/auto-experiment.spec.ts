@@ -17,9 +17,34 @@ test('実験スクリプトの実行', async () => {
   ]
 });
 
-  // 組み合わせごとの処理を定義
-  const tasks = CONFIG.approaches.flatMap((approach) =>
-    CONFIG.mediaPath.map((mediaPath) => async () => {
+  // ヘルパー関数: 配列を指定サイズごとに分割
+  const chunkArray = <T>(array: T[], size: number): T[][] => {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += size) {
+      chunks.push(array.slice(i, i + size));
+    }
+    return chunks;
+  };
+
+  // 動画メディアと画像メディアに仕分け
+  const videoMediaList = CONFIG.mediaList.filter(item => {
+    const ext = path.extname(item.mediaPath).toLowerCase();
+    return ['.mp4', '.webm', '.ogg', '.mov'].includes(ext);
+  });
+
+  const imageMediaList = CONFIG.mediaList.filter(item => {
+    const ext = path.extname(item.mediaPath).toLowerCase();
+    return !['.mp4', '.webm', '.ogg', '.mov'].includes(ext);
+  });
+
+  // アプローチごとに順次処理を呼び出す
+  for (let approachIndex = 0; approachIndex < CONFIG.approaches.length; approachIndex++) {
+    const approach = CONFIG.approaches[approachIndex];
+
+    const processItem = async (item: typeof CONFIG.mediaList[number]) => {
+      const mediaPath = item.mediaPath;
+      const roiJsonPath = item.roiJsonPath;
+
       const context = await browser.newContext();
       const page = await context.newPage();
 
@@ -39,9 +64,15 @@ test('実験スクリプトの実行', async () => {
         console.log(`${CONFIG.initialWaitSeconds}秒間、待機します...`);
         await page.waitForTimeout(CONFIG.initialWaitSeconds * 1000);
 
+        // CONFIG.approachesの2回目以降（approachIndex >= 1）の場合、先にROI JSONをアップロード
+        if (approachIndex >= 1 && roiJsonPath) {
+          console.log('ROI処理する輪郭のデータをアップロードしています...');
+          await page.getByLabel('ROI処理する輪郭のデータをアップロード (任意)').setInputFiles(roiJsonPath);
+        }
+
         // 【手順2】ファイルのアップロード
         console.log('ファイルをアップロードしています...');
-        await page.locator('input[type="file"]').setInputFiles(mediaPath);
+        await page.getByLabel('入力する画像・動画をアップロード').setInputFiles(mediaPath);
         
         // Canvas要素を取得し、画面に表示されるまで待機する
         const canvas = page.locator('canvas');
@@ -130,12 +161,18 @@ test('実験スクリプトの実行', async () => {
       } finally {
         await context.close();
       }
-    })
-  );
+    };
 
-  // すべての組み合わせを順番に実行
-  for (const task of tasks) {
-    await task();
+    // 画像ファイルを4並列で処理
+    const imageChunks = chunkArray(imageMediaList, 4);
+    for (const chunk of imageChunks) {
+      await Promise.all(chunk.map(item => processItem(item)));
+    }
+
+    // 動画ファイルをシングル（1つずつ順次）で処理
+    for (const item of videoMediaList) {
+      await processItem(item);
+    }
   }
 
   // 終了処理
