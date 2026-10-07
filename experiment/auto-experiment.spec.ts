@@ -17,9 +17,34 @@ test('実験スクリプトの実行', async () => {
   ]
 });
 
-  // 組み合わせごとの処理を定義
-  const tasks = CONFIG.approaches.flatMap((approach) =>
-    CONFIG.mediaPath.map((mediaPath) => async () => {
+  // ヘルパー関数: 配列を指定サイズごとに分割
+  const chunkArray = <T>(array: T[], size: number): T[][] => {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += size) {
+      chunks.push(array.slice(i, i + size));
+    }
+    return chunks;
+  };
+
+  // 動画メディアと画像メディアに仕分け
+  const videoMediaList = CONFIG.mediaList.filter(item => {
+    const ext = path.extname(item.mediaPath).toLowerCase();
+    return ['.mp4', '.webm', '.ogg', '.mov'].includes(ext);
+  });
+
+  const imageMediaList = CONFIG.mediaList.filter(item => {
+    const ext = path.extname(item.mediaPath).toLowerCase();
+    return !['.mp4', '.webm', '.ogg', '.mov'].includes(ext);
+  });
+
+  // アプローチごとに順次処理を呼び出す
+  for (let approachIndex = 0; approachIndex < CONFIG.approaches.length; approachIndex++) {
+    const approach = CONFIG.approaches[approachIndex];
+
+    const processItem = async (item: typeof CONFIG.mediaList[number]) => {
+      const mediaPath = item.mediaPath;
+      const roiFilePath = item.roiFilePath;
+
       const context = await browser.newContext();
       const page = await context.newPage();
 
@@ -39,12 +64,18 @@ test('実験スクリプトの実行', async () => {
         console.log(`${CONFIG.initialWaitSeconds}秒間、待機します...`);
         await page.waitForTimeout(CONFIG.initialWaitSeconds * 1000);
 
+        // CONFIG.approachesの2回目以降（approachIndex >= 1）の場合、先にROI JSONをアップロード
+        if (approachIndex >= 1 && roiFilePath) {
+          console.log('ROI処理する輪郭のデータをアップロードしています...');
+          await page.getByLabel(CONFIG.roiJsonInputLabel).setInputFiles(roiFilePath);
+        }
+
         // 【手順2】ファイルのアップロード
         console.log('ファイルをアップロードしています...');
-        await page.locator('input[type="file"]').setInputFiles(mediaPath);
+        await page.getByLabel(CONFIG.mediaInputLabel).setInputFiles(mediaPath);
         
         // Canvas要素を取得し、画面に表示されるまで待機する
-        const canvas = page.locator('canvas');
+        const canvas = page.locator('canvas').first();
         await canvas.waitFor({ state: 'visible' });
 
         // 描画および内部処理が安定するまで少し待機
@@ -58,23 +89,9 @@ test('実験スクリプトの実行', async () => {
           return;
         }
 
-        // 【手順3】多角形ROIを自動でなぞる
-        console.log('多角形ROIをなぞっています...');
-        const startX = CONFIG.roiPoints[0].x;
-        const startY = CONFIG.roiPoints[0].y;
-        await page.mouse.move(startX, startY);
-        await page.mouse.down(); // ペンを画面につける
-
-        for (let i = 1; i < CONFIG.roiPoints.length; i++) {
-          const nextX = CONFIG.roiPoints[i].x;
-          const nextY = CONFIG.roiPoints[i].y;
-          await page.mouse.move(nextX, nextY, { steps: 5 }); // 滑らかに動かす
-        }
-        await page.mouse.up(); // ペンを離す
-
-        // 動画ファイルの場合のみ、動画の再生終了を待機する
         const ext = path.extname(mediaPath).toLowerCase();
         if (['.mp4', '.webm', '.ogg', '.mov'].includes(ext)) {
+          // 動画ファイルの場合、動画の再生終了を待機する
           const videoLocator = page.locator('video');
           await videoLocator.waitFor({ state: 'attached' });
           await page.waitForFunction(
@@ -85,11 +102,24 @@ test('実験スクリプトの実行', async () => {
             await videoLocator.elementHandle(),
             { timeout: 0 }
           );
+        } else {
+          // 画像ファイルの場合、画像の読み込み完了を待機する
+          const imgLocator = page.locator('img');
+          if (await imgLocator.count() > 0) {
+            await page.waitForFunction(
+              (img) => {
+                const imgEl = img as HTMLImageElement;
+                return imgEl.complete && imgEl.naturalWidth !== 0;
+              },
+              await imgLocator.elementHandle(),
+              { timeout: 0 }
+            );
+          }
         }
 
         await page.waitForTimeout(3000);
 
-        // 【手順4】結果ダウンロードボタンを押す（ファイルの保存）
+        // 【手順3】結果ダウンロードボタンを押す（ファイルの保存）
         console.log('ダウンロードボタンをクリックします...');
         
         // Playwrightでダウンロードイベントを待ち受ける状態を作る
@@ -130,12 +160,18 @@ test('実験スクリプトの実行', async () => {
       } finally {
         await context.close();
       }
-    })
-  );
+    };
 
-  // すべての組み合わせを順番に実行
-  for (const task of tasks) {
-    await task();
+    // 画像ファイルを4並列で処理
+    const imageChunks = chunkArray(imageMediaList, 4);
+    for (const chunk of imageChunks) {
+      await Promise.all(chunk.map(item => processItem(item)));
+    }
+
+    // 動画ファイルをシングル（1つずつ順次）で処理
+    for (const item of videoMediaList) {
+      await processItem(item);
+    }
   }
 
   // 終了処理

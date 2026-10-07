@@ -9,6 +9,6 @@
   },
   "scripts": {
     "postinstall": "npx playwright install --with-deps chromium",
-    "test": "npx playwright test auto-experiment.spec.ts"
+    "experiment": "npx playwright test auto-experiment.spec.ts"
   }
 }

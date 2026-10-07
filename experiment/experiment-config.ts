@@ -3,30 +3,36 @@ export const CONFIG = {
   // 1. 最初に指定した秒数待つ（秒単位で指定）
   initialWaitSeconds: 10,
 
-  // 2. アップロードする画像または動画ファイルのパス
-  mediaPath: [
-    'input_media/standard.png',
-    'input_media/crowded.png',
-    'input_media/strangers.png',
-    'input_media/various_clothes.png',
-    'input_media/queue_video.mp4'
+  // 2. アップロードする画像または動画ファイルのパスと個別のROI JSONの設定
+  mediaList: [
+    {
+      mediaPath: 'input_data/media_files/standard.png',
+      roiFilePath: 'input_data/roi_contours/standard.json'
+    },
+    {
+      mediaPath: 'input_data/media_files/crowded.png',
+      roiFilePath: 'input_data/roi_contours/crowded.json'
+    },
+    {
+      mediaPath: 'input_data/media_files/strangers.png',
+      roiFilePath: 'input_data/roi_contours/strangers.json'
+    },
+    {
+      mediaPath: 'input_data/media_files/various_clothes.png',
+      roiFilePath: 'input_data/roi_contours/various_clothes.json'
+    },
+    {
+      mediaPath: 'input_data/media_files/queue_video.mp4',
+      roiFilePath: 'input_data/roi_contours/queue_video.json'
+    }
   ],
 
-  // 3. なぞる多角形の座標リスト (Canvasの左上を 0,0 としたピクセル値)
-  roiPoints: [
-    { x: 962, y: 508 }, // スタート地点
-    { x: 887, y: 532 }, // 2つ目の角
-    { x: 785, y: 528 }, // 3つ目の角
-    { x: 365, y: 350 }, // 4つ目の角
-    { x: 353, y: 75  }, // 5つ目の角
-    { x: 645, y: 67  }, // 6つ目の角
-    { x: 992, y: 95  }  // 最後にスタート地点に戻って閉じる
-  ],
-
-  // 4. ダウンロードボタンのテキスト（環境に合わせて変更してください）
+  // 3. ファイル入力要素およびボタンの表示テキスト
+  mediaInputLabel: '入力する画像・動画をアップロード',
+  roiJsonInputLabel: 'ROI処理する輪郭のデータをアップロード (任意)',
   downloadButtonName: '実験結果をダウンロード',
 
-  // 5. アプローチ設定（対象WebサイトのURLと保存用ファイル名）
+  // 4. アプローチ設定（対象WebサイトのURLと保存用ファイル名）
   approaches: [
     {
       targetUrl: 'https://pw56.github.io/queue-group-detection-research/src/approach_01_baseline',

@@ -1,7 +1,0 @@
-{
-  // Playwright拡張機能に設定ファイルの場所を教える
-  "playwright.configFile": "tests/playwright.config.ts",
-  
-  // テストの実行ディレクトリを tests/ に指定する
-  "playwright.workspaceRoot": "tests"
-}
