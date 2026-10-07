@@ -75,7 +75,7 @@ test('実験スクリプトの実行', async () => {
         await page.getByLabel(CONFIG.mediaInputLabel).setInputFiles(mediaPath);
         
         // Canvas要素を取得し、画面に表示されるまで待機する
-        const canvas = page.locator('canvas');
+        const canvas = page.locator('canvas').first();
         await canvas.waitFor({ state: 'visible' });
 
         // 描画および内部処理が安定するまで少し待機
