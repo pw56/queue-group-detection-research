@@ -10,12 +10,12 @@ test('実験スクリプトの実行', async () => {
   test.setTimeout(0);
   
   const browser = await chromium.launch({
-  args: [
-    '--enable-unsafe-webgpu',       // WebGPUを有効化
-    '--use-gl=angle',               // グラフィックスバックエンドの設定
-    '--ignore-gpu-blocklist',       // GPUの互換性制限を解除
-  ]
-});
+    args: [
+      '--enable-unsafe-webgpu',       // WebGPUを有効化
+      '--use-gl=angle',               // グラフィックスバックエンドの設定
+      '--ignore-gpu-blocklist',       // GPUの互換性制限を解除
+    ]
+  });
 
   // ヘルパー関数: 配列を指定サイズごとに分割
   const chunkArray = <T>(array: T[], size: number): T[][] => {
