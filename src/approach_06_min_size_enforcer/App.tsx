@@ -215,6 +215,12 @@ const App = () => {
 
         // 【2回目の処理（2フレーム目扱い・タイムスタンプは1で出力）】
         await executeFrameProcessing();
+
+        // さらに空けてから(保険)
+        await new Promise((r) => setTimeout(r, 10000));
+
+        // 【3回目の処理（3フレーム目扱い・タイムスタンプは1で出力）】
+        await executeFrameProcessing();
       };
       
       // 画像の読み込み完了を待って処理、または既に読み込み済みの場合は即時実行
