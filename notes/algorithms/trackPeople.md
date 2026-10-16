@@ -31,7 +31,7 @@ $$\mathbf{K}_k = \mathbf{P}_k^- \mathbf{H}^T (\mathbf{H} \mathbf{P}_k^- \mathbf{
 
 $$\mathbf{x}_k = \mathbf{x}_k^- + \mathbf{K}_k (\mathbf{z}_k - \mathbf{H} \mathbf{x}_k^-)$$
 
-$$\mathbf{P}_k = (\mathbf{I} - \mathbf{K}_k \mathbf{H}) \mathbf{P}_k^-$$
+- $$\mathbf{P}_k = (\mathbf{I} - \mathbf{K}_k \mathbf{H}) \mathbf{P}_k^-$$
 
 ---
 
@@ -44,14 +44,14 @@ $$\mathbf{P}_k = (\mathbf{I} - \mathbf{K}_k \mathbf{H}) \mathbf{P}_k^-$$
 
 $$w_{\text{hue}} = \min(s_A, s_B)$$
 
-$$w_{\text{val}} = 1.0 - 0.7 \times w_{\text{hue}}$$
+- $$w_{\text{val}} = 1.0 0.7 \times w_{\text{hue}}$$
 
 #### 色相距離および統合色距離計算:
 色相は円周上の値であるため、最短距離を考慮した $\Delta h$ を算出します。
 
-$$\Delta h = \min(|h_A - h_B|, 1.0 - |h_A - h_B|) \times 2.0$$
+- $$\Delta h = \min(\vert{}h_A - h_B\vert{}, 1.0\vert{}h_A - h_B\vert{}) \times 2.0$$
 
-$$\text{Distance}(\mathbf{C}_A, \mathbf{C}_B) = \frac{w_{\text{hue}} \Delta h + w_{\text{val}} |v_A - v_B|}{w_{\text{hue}} + w_{\text{val}}}$$
+$$\text{Distance}(\mathbf{C}_A, \mathbf{C}_B) = \frac{w_{\text{hue}} \Delta h + w_{\text{val}} \vert{}v_A - v_B\vert{}}{w_{\text{hue}} + w_{\text{val}}}$$
 
 ---
 
