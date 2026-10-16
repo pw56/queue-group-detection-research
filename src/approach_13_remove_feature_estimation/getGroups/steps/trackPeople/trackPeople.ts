@@ -1,6 +1,5 @@
 import { GroupDetectionImageSource, Person } from '../../types';
 import { TrackedPerson } from './TrackedPerson';
-import { extractFeatures, PersonBodyFeatures } from './extractFeatures';
 import { getFps } from './measureFps';
 
 const trackedPeoplePool: TrackedPerson[] = [];
@@ -10,14 +9,7 @@ export async function trackPeople(
   detectedPeople: Person[],
   timestamp: number
 ): Promise<Person[]> {
-  const imgWidth = imageSource.naturalWidth || imageSource.width || 1;
-  const imgHeight = imageSource.naturalHeight || imageSource.height || 1;
-
   const fps = getFps();
-
-  const detectedFeaturesList: PersonBodyFeatures[] = await Promise.all(
-    detectedPeople.map((person) => extractFeatures(imageSource, person, imgWidth, imgHeight))
-  );
 
   const matchedDetectedIndices = new Set<number>();
 
@@ -50,10 +42,7 @@ export async function trackPeople(
       const dist = Math.hypot(candCx - prevCx, candCy - prevCy);
       if (dist > searchRadius) continue;
 
-      const colorDist = tracked.calculateColorMatchScore(detectedFeaturesList[j]);
-      if (colorDist > 0.45) continue;
-
-      const combinedScore = dist / searchRadius + colorDist;
+      const combinedScore = dist / searchRadius;
 
       if (combinedScore < bestScore) {
         bestScore = combinedScore;
@@ -65,21 +54,18 @@ export async function trackPeople(
       matchedDetectedIndices.add(bestMatchIdx);
 
       await tracked.updateFrame(
-        imageSource,
         detectedPeople[bestMatchIdx],
-        timestamp,
-        imgWidth,
-        imgHeight
+        timestamp
       );
     } else {
-      await tracked.updateFrame(imageSource, undefined, timestamp, imgWidth, imgHeight);
+      await tracked.updateFrame(undefined, timestamp);
     }
   }
 
   for (let j = 0; j < detectedPeople.length; j++) {
     if (!matchedDetectedIndices.has(j)) {
       const newTracked = new TrackedPerson(detectedPeople[j], timestamp);
-      await newTracked.updateFrame(imageSource, detectedPeople[j], timestamp, imgWidth, imgHeight);
+      await newTracked.updateFrame(detectedPeople[j], timestamp);
       trackedPeoplePool.push(newTracked);
     }
   }

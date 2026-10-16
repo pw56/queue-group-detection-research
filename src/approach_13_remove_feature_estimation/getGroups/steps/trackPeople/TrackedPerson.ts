@@ -1,6 +1,5 @@
 import { Person } from '../../types';
 import { KalmanFilterForPeople } from './KalmanFilterForPeople';
-import { PersonBodyFeatures, extractFeatures, compareHSV } from './extractFeatures';
 import { getFps } from './measureFps';
 
 const QUEUE_STATIONARY_TIME_THRESHOLD_MS = 2000;
@@ -10,7 +9,6 @@ export class TrackedPerson {
   #id: string;
   #kalmanFilter: KalmanFilterForPeople | null = null;
   #latestPerson?: Person;
-  #features?: PersonBodyFeatures;
   #lastSeenTimestamp: number;
   #firstSeenTimestamp: number;
   #missingDurationMs = 0;
@@ -38,10 +36,6 @@ export class TrackedPerson {
     return this.#latestPerson;
   }
 
-  get features(): PersonBodyFeatures | undefined {
-    return this.#features;
-  }
-
   isQueueMember(): boolean {
     return this.#isInQueue;
   }
@@ -62,11 +56,8 @@ export class TrackedPerson {
   }
 
   async updateFrame(
-    imageSource: CanvasImageSource,
     matchedPerson: Person | undefined,
-    timestamp: number,
-    imgWidth: number,
-    imgHeight: number
+    timestamp: number
   ): Promise<void> {
     const dt = (timestamp - this.#lastSeenTimestamp) / 1000;
 
@@ -95,9 +86,6 @@ export class TrackedPerson {
         };
       }
       this.#latestPerson = updatedPerson;
-
-      const newFeatures = await extractFeatures(imageSource, updatedPerson, imgWidth, imgHeight);
-      this.#mergeFeatures(newFeatures);
     } else {
       this.#missingDurationMs += (timestamp - this.#lastSeenTimestamp);
       this.#latestPerson = undefined;
@@ -107,20 +95,6 @@ export class TrackedPerson {
     this.#lastSeenTimestamp = timestamp;
 
     this.#evaluateQueueStatus(timestamp);
-  }
-
-  #mergeFeatures(newFeatures: PersonBodyFeatures): void {
-    if (!this.#features) {
-      this.#features = newFeatures;
-      return;
-    }
-
-    if (newFeatures.leftShoulder) this.#features.leftShoulder = newFeatures.leftShoulder;
-    if (newFeatures.rightShoulder) this.#features.rightShoulder = newFeatures.rightShoulder;
-    if (newFeatures.leftHip) this.#features.leftHip = newFeatures.leftHip;
-    if (newFeatures.rightHip) this.#features.rightHip = newFeatures.rightHip;
-    if (newFeatures.faceForward) this.#features.faceForward = newFeatures.faceForward;
-    if (newFeatures.faceBackward) this.#features.faceBackward = newFeatures.faceBackward;
   }
 
   #evaluateQueueStatus(timestamp: number): void {
@@ -146,35 +120,6 @@ export class TrackedPerson {
     } else {
       this.#isInQueue = true;
     }
-  }
-
-  calculateColorMatchScore(features: PersonBodyFeatures): number {
-    if (!this.#features) return 0.5;
-
-    const scores: number[] = [];
-    if (features.leftShoulder && this.#features.leftShoulder) {
-      scores.push(compareHSV(features.leftShoulder, this.#features.leftShoulder));
-    }
-    if (features.rightShoulder && this.#features.rightShoulder) {
-      scores.push(compareHSV(features.rightShoulder, this.#features.rightShoulder));
-    }
-    if (features.leftHip && this.#features.leftHip) {
-      scores.push(compareHSV(features.leftHip, this.#features.leftHip));
-    }
-    if (features.rightHip && this.#features.rightHip) {
-      scores.push(compareHSV(features.rightHip, this.#features.rightHip));
-    }
-    if (features.faceForward && this.#features.faceForward) {
-      scores.push(compareHSV(features.faceForward, this.#features.faceForward));
-    }
-    if (features.faceBackward && this.#features.faceBackward) {
-      scores.push(compareHSV(features.faceBackward, this.#features.faceBackward));
-    }
-
-    if (scores.length === 0) return 0.5;
-
-    const avgDist = scores.reduce((a, b) => a + b, 0) / scores.length;
-    return avgDist;
   }
 
   #updateState(person: Person, timestamp: number): void {
