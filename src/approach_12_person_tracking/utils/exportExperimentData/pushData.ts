@@ -27,9 +27,19 @@ export async function addAnnotatedImageAsPng(inputPngFile: Blob, timestamp: numb
   await pushBlob(path, inputPngFile);
 }
 
-export async function addObjectAsJson(inputObject: Object, timestamp: number) {
+export async function addDetectedGroupsAsJson(inputObject: Object, timestamp: number) {
   const fileName = `t_${getPaddedTimestamp(timestamp, 3)}s.json`;
   const path = joinPath('detection_outputs/', 'labels/', fileName);
+
+  // JSON(テキストファイル)は画像とは別の方法でエンコード
+  const jsonString = JSON.stringify(inputObject);
+  const arrayBuffer: Uint8Array = new TextEncoder().encode(jsonString);
+  addFileToZip(path, arrayBuffer);
+}
+
+export async function addRoiContourAsJson(inputObject: Object, timestamp: number) {
+  const fileName = `t_${getPaddedTimestamp(timestamp, 3)}s.json`;
+  const path = joinPath('roi_contours/', fileName);
 
   // JSON(テキストファイル)は画像とは別の方法でエンコード
   const jsonString = JSON.stringify(inputObject);

@@ -7,7 +7,7 @@ import { cropImage } from './cropUtils';
 export type { ImageCropperProps, ImageCropperRef, CropResult, CroppedBoundingBox } from './types';
 
 export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
-  ({ imageElement, className, onCropChange }, ref) => {
+  ({ imageElement, className, onCropChange, onReady }, ref) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const lineRef = useRef<Konva.Line>(null); // パフォーマンス対策：Lineノードを直接参照
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -40,12 +40,19 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
         const offsetX = (width - imageW) / 2;
         const offsetY = (height - imageH) / 2;
 
-        setImageLayout({
+        const layout = {
           width: imageW,
           height: imageH,
           x: offsetX,
           y: offsetY,
-        });
+        };
+
+        setImageLayout(layout);
+
+        // レイアウト更新イベントを発火させて準備完了を通知
+        if (onReady) {
+          onReady();
+        }
       };
 
       if (imageElement.complete) {
@@ -53,12 +60,13 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
       } else {
         imageElement.onload = updateDimensions;
       }
-    }, [className, imageElement]);
+    }, [className, imageElement, onReady]);
 
     // 【画像変更時の仕様】Propsの画像が変わっても、描いた線はリセットせず画面に残す
     useEffect(() => {
       if (lineRef.current && pointsRef.current.length > 0) {
         lineRef.current.points(pointsRef.current);
+        lineRef.current.getLayer()?.batchDraw();
       }
     }, [imageElement, imageLayout]); // 正確な画像レイアウトの変更を監視
 
@@ -140,6 +148,24 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
       // 戻り値の型が CropResult に更新された cropImage を呼ぶ
       getClippedImage: (): Promise<CropResult> => {
         return cropImage(imageElement, pointsRef.current, imageLayout);
+      },
+      // 外部からJSON等でパースされた輪郭座標(points)を注入・描画するためのメソッド
+      setRoiContour: async (points: number[]): Promise<CropResult | null> => {
+        pointsRef.current = points;
+        if (lineRef.current) {
+          lineRef.current.points(points);
+          lineRef.current.getLayer()?.batchDraw();
+        }
+        try {
+          const cropResult = await cropImage(imageElement, points, imageLayout);
+          if (onCropChange) {
+            onCropChange(cropResult);
+          }
+          return cropResult;
+        } catch (error) {
+          console.error(error);
+          return null;
+        }
       }
     }));
 
@@ -173,10 +199,10 @@ export const ImageCropper = forwardRef<ImageCropperRef, ImageCropperProps>(
                 x={imageLayout.x}
                 y={imageLayout.y}
               />
-              {/* 手書き線（Ref制御。初期化時は空の配列） */}
+              {/* 手書き線（Ref制御。初期化時はpointsRefの内容を使用） */}
               <Line
                 ref={lineRef}
-                points={[]}
+                points={pointsRef.current}
                 stroke="#df4b26"
                 strokeWidth={3}
                 tension={0.1} // パフォーマンス向上のためテンションを少し浅めに調整
