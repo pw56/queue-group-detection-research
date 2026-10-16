@@ -19,7 +19,7 @@
 - **アプローチ10 (YOLOv12 Nanoへの検出モデル刷新手法)**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_10_change_detection_model)
 - **アプローチ11 (ベクトル方向・体の向きによるグループ判定手法)**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_11_vector_orientation_grouping)
 - **アプローチ12 (複数フレーム情報を利用した人物トラッキング・通行人除外手法)**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_12_person_tracking)
-- **アプローチ13 ()**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_13_remove_feature_estimation)
+- **アプローチ13 (特徴量推定処理の廃止に基づく構造単純化手法)**: [デモページを開く](https://pw56.github.io/queue-group-detection-research/src/approach_13_remove_feature_estimation)
 
 ## 推奨環境
 ### 論文執筆
