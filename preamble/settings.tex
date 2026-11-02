@@ -1,0 +1,36 @@
+% ==========================================
+% パッケージ読み込みおよび各種設定
+% ==========================================
+
+% 画像挿入用
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+
+% 数式用
+\usepackage{amsmath, amssymb}
+
+% 表の装飾用
+\usepackage{booktabs}
+
+% 枠囲み・デザインボックス用
+\usepackage{tcolorbox}
+
+% リンク設定
+\usepackage[colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue]{hyperref}
+
+% ソースコード表示用 (listings)
+\usepackage{listings}
+\lstset{
+  basicstyle={\ttfamily\small},
+  frame=single,
+  lineskip=-0.1ex,
+  breaklines=true,
+  showstringspaces=false,
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=5pt
+}
+
+% 余白設定
+\usepackage[top=25mm, bottom=25mm, left=20mm, right=20mm]{geometry}
