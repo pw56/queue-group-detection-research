@@ -9,11 +9,14 @@ my-latex-project/
 │   └── settings.tex      # 余白、フォント、マクロなどの設定ファイル
 │
 ├── chapters/             # 本文の各章を格納するフォルダ
-│   ├── abstract.tex      # 概要
-│   ├── introduction.tex  # 第1章：はじめに
-│   ├── methodology.tex   # 第2章：研究手法
-│   ├── results.tex       # 第3章：結果と考察
-│   └── conclusion.tex    # 第4章：おわりに
+│   ├── theme.tex         # 1. テーマ
+│   ├── background.tex    # 2. 背景
+│   ├── problem.tex       # 3. 問題提起
+│   ├── objective.tex     # 4. 目的
+│   ├── approach01.tex    # 5. アプローチ01
+│   ├── approach02.tex    # 6. アプローチ02(以後最後のアプローチまで繰り返す)
+│   ├── summary.tex       # 7. 研究の要約
+│   └── future_work.tex   # 8. 今後の課題
 │
 ├── figures/              # 画像ファイルを格納するフォルダ
 │   ├── workflow.pdf      # ベクター画像（PDF形式がベスト）
