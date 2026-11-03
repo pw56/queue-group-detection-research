@@ -1,40 +1,9 @@
 \section{アプローチ01（ベースライン手法）}
 
 \subsection{手法の概要}
-アプローチ01は、本研究における比較の基準となるベースライン手法である。監視カメラ等から取得された標準的な二次元画像フレーム全体をそのまま入力とし、一般的なオブジェクト検出モデル（Coco-SSD等）を用いて画面内に存在する人物（\texttt{person} クラス）を一元的に列挙・検出する。
+アプローチ01は、本研究における比較の基準となるベースライン手法である。監視カメラ等から取得された標準的な二次元画像フレーム全体をそのまま入力とし、一般的なオブジェクト検出モデルを用いて画面内に存在する人物（\texttt{person} クラス）を一元的に列挙・検出する。
 
 得られた二次元バウンディングボックスの中心座標間におけるユーグリッド距離を測定し、事前に設定した一定の物理距離閾値（$\delta_{dist}$）以下に位置する人物同士を同一のグループとして簡易的に統合・判定する手法を採用した。
-
-\subsection{実装と処理フロー}
-ベースライン手法の基本的な検出・判別アルゴリズムを以下に示す。
-
-\begin{lstlisting}[language=JavaScript, caption=ベースラインにおけるバウンディングボックス距離判定の概念コード]
-// 検出された人物配列から中心座標間の距離を算出
-function groupPeopleBaseline(people, distanceThreshold) {
-  const groups = [];
-  const visited = new Set();
-
-  for (let i = 0; i < people.length; i++) {
-    if (visited.has(i)) continue;
-    const currentGroup = [people[i]];
-    visited.add(i);
-
-    for (let j = i + 1; j < people.length; j++) {
-      if (visited.has(j)) continue;
-      const dx = people[i].centerX - people[j].centerX;
-      const dy = people[i].centerY - people[j].centerY;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-
-      if (distance <= distanceThreshold) {
-        currentGroup.push(people[j]);
-        visited.add(j);
-      }
-    }
-    groups.push(currentGroup);
-  }
-  return groups;
-}
-\end{lstlisting}
 
 \subsection{結果と課題}
 ベースライン手法の検証結果および明瞭となった課題は以下の通りである。
