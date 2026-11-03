@@ -1,0 +1,50 @@
+\section{アプローチ02（事前指定の関心領域（ROI）による空間制限手法）}
+
+\subsection{手法の概要}
+アプローチ02では、アプローチ01で判明した「画角全体のノイズおよび待機列領域外の人物誤検出」という課題を解決するため、源流の入力画像に対して待機列が存在する領域のみを切り取る関心領域（ROI: Region of Interest）処理を導入した。
+
+画角内に事前に多角形または矩形のROIを設定し、入力画像フレームからROI領域外の背景や周辺通路を物理的に切り落とすか、または領域外に位置する検出結果を事前にフィルタリング・無効化する構造とした。
+
+\subsection{実装と処理フロー}
+入力画像を待機列部分のみに制限するための主要な前処理およびフィルタリング処理の構造を以下に示す。
+
+\begin{lstlisting}[language=JavaScript, caption=関心領域（ROI）による空間制限およびフィルタリング処理]
+// ROI領域外の検出対象をフィルタリングする処理の概要
+function filterDetectionsByROI(detections, roiPolygon) {
+  return detections.filter(detection => {
+    // バウンディングボックスの足元または中心座標がROIポリゴン内にあるか判定
+    const point = {
+      x: detection.x + detection.width / 2,
+      y: detection.y + detection.height
+    };
+    return isPointInPolygon(point, roiPolygon);
+  });
+}
+
+// 点が多角形（ROI）内部に存在するかを判定するRay-Castingアルゴリズム
+function isPointInPolygon(point, polygon) {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].x, yi = polygon[i].y;
+    const xj = polygon[j].x, yj = polygon[j].y;
+    
+    const intersect = ((yi > point.y) !== (yj > point.y)) &&
+      (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+\end{lstlisting}
+
+\subsection{結果およびアプローチ01との比較・課題}
+
+\subsubsection{アプローチ01との比較}
+ROI処理の適用により、待機列の外部を移動する通行人や背景の静止オブジェクトに対する誤検出が大幅に削減された。計測対象範囲が厳密に限定されたことで、待機列内の実人数に近い精度の高い検出領域を確保することが可能となった。
+
+\subsubsection{判明した課題}
+\begin{enumerate}
+    \item \textbf{密集部位における人物切り出し・検出の限界}：
+    検出範囲を待機列内に制限したものの、オブジェクト検出モデル（Coco-SSD等）自体の単一バウンディングボックス抽出能力の限界により、人物が極度に近接している場所での重複検出や検出漏れ（遮蔽による影響）は依然として解決されなかった。
+    \item \textbf{検出体の姿勢・向き情報不足}：
+    バウンディングボックスの二次元領域のみに依存しているため、人物が前後どちらを向いているか、あるいは横並びで会話しているか等の幾何学的関係性を判別する情報が不足していた。
+\end{enumerate}
