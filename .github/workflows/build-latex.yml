@@ -34,3 +34,4 @@ jobs:
         with:
           name: latex-pdf-document
           path: ${{ env.PDF_OUTPUT_FILE }}
+          archive: false
