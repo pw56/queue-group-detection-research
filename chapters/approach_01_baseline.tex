@@ -5,6 +5,100 @@
 
 得られた二次元バウンディングボックスの中心座標間におけるユーグリッド距離を測定し、事前に設定した一定の物理距離閾値（$\delta_{dist}$）以下に位置する人物同士を同一のグループとして簡易的に統合・判定する手法を採用した。
 
+\subsection{実験結果}
+実際のプログラムを用いて検証を行った際の実験結果を以下に示す。図\ref{fig:approach01_before_1}〜\ref{fig:approach01_after_5}は各実験パターン（パターン1〜5）における入力画像および処理結果画像である。
+緑色のバウンディングボックスは検出された人物、赤色のバウンディングボックスは同定されたグループを示している。
+
+% パターン 1
+\begin{figure}[htbp]
+  \centering
+  \begin{minipage}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/chart.png}
+    \caption{アプローチ01：パターン1 入力画像}
+    \label{fig:approach01_before_1}
+  \end{minipage}
+  \hfill
+  \begin{minipage}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/chart.png}
+    \caption{アプローチ01：パターン1 処理後結果}
+    \label{fig:approach01_after_1}
+  \end{minipage}
+\end{figure}
+
+% パターン 2
+\begin{figure}[htbp]
+  \centering
+  \begin{minipage}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/chart.png}
+    \caption{アプローチ01：パターン2 入力画像}
+    \label{fig:approach01_before_2}
+  \end{minipage}
+  \hfill
+  \begin{minipage}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/chart.png}
+    \caption{アプローチ01：パターン2 処理後結果}
+    \label{fig:approach01_after_2}
+  \end{minipage}
+\end{figure}
+
+% パターン 3
+\begin{figure}[htbp]
+  \centering
+  \begin{minipage}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/chart.png}
+    \caption{アプローチ01：パターン3 入力画像}
+    \label{fig:approach01_before_3}
+  \end{minipage}
+  \hfill
+  \begin{minipage}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/chart.png}
+    \caption{アプローチ01：パターン3 処理後結果}
+    \label{fig:approach01_after_3}
+  \end{minipage}
+\end{figure}
+
+% パターン 4
+\begin{figure}[htbp]
+  \centering
+  \begin{minipage}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/chart.png}
+    \caption{アプローチ01：パターン4 入力画像}
+    \label{fig:approach01_before_4}
+  \end{minipage}
+  \hfill
+  \begin{minipage}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/chart.png}
+    \caption{アプローチ01：パターン4 処理後結果}
+    \label{fig:approach01_after_4}
+  \end{minipage}
+\end{figure}
+
+% パターン 5
+\begin{figure}[htbp]
+  \centering
+  \begin{minipage}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/chart.png}
+    \caption{アプローチ01：パターン5 入力画像}
+    \label{fig:approach01_before_5}
+  \end{minipage}
+  \hfill
+  \begin{minipage}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/chart.png}
+    \caption{アプローチ01：パターン5 処理後結果}
+    \label{fig:approach01_after_5}
+  \end{minipage}
+\end{figure}
+
 \subsection{結果と課題}
 ベースライン手法の検証結果および明瞭となった課題は以下の通りである。
 
