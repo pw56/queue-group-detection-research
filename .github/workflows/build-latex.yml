@@ -1,0 +1,36 @@
+name: Build LaTeX
+
+on:
+  push:
+    paths:
+      - '**/*.tex'
+      - '**/*.png'
+      - '**/*.pdf'
+      - '**/*.eps'
+      - '!**/notes'
+  pull_request:
+  workflow_dispatch:
+
+env:
+  TEX_ROOT_FILE: "main.tex"
+  PDF_OUTPUT_FILE: "main.pdf"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Compile LaTeX document
+        uses: xu-cheng/latex-action@v4
+        with:
+          compiler: lualatex
+          root_file: ${{ env.TEX_ROOT_FILE }}
+
+      - name: Upload PDF Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: latex-pdf-document
+          path: ${{ env.PDF_OUTPUT_FILE }}
