@@ -1,5 +1,3 @@
-$latex = 'uplatex -synctex=1 -halt-on-error';
-$bibtex = 'pbibtex';
-$dvipdf = 'dvipdfmx %O -o %D %S';
-$makeindex = 'mendex %O -o %D %S';
-$pdf_mode = 3;
+$lualatex = 'lualatex %O %S';
+$bibtex = 'pbibtex %O %B';
+$pdf_mode = 4;

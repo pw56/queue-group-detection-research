@@ -30,7 +30,6 @@ jobs:
         with:
           compiler: lualatex
           root_file: ${{ env.TEX_ROOT_FILE }}
-          args: -pdfdvi
 
       - name: Rename output PDF
         run: mv main.pdf "${{ env.PDF_OUTPUT_FILE }}"
