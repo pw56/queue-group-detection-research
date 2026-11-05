@@ -11,21 +11,24 @@
 
 \begin{table}[htbp]
   \centering
+  \small
   \caption{アプローチ01：実験結果の比較}
   \label{tab:approach01_results}
-  \begin{tabular}{|c|c|c|c|c|}
+  \adjustbox{max width=\textwidth}{%
+  \begin{tabular}{|c|c|c|m{2.5cm}|m{2.5cm}|}
     \hline
-     & 入力画像 & 検出結果 & 検出されたグループ数 & 実際のグループ数との差 \\
+    \centering & \centering 入力画像 & \centering 検出結果 & \centering 検出された\par グループ数 & \hfil 実際のグループ数\par との差 \hfil \\
     \hline
-    標準状態 & \includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/standard.png} & \includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/standard/detection_outputs/annotated_images/t_000s.png} & 0 & 0 \\
+    \vcenter{\hbox{標準状態}} & \vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/standard.png}}} & \vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/standard/detection_outputs/annotated_images/t_000s.png}}} & \hfil 0 \hfil & \hfil 0 \hfil \\
     \hline
-    密集状態 & \includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/crowded.png} & \includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/crowded/detection_outputs/annotated_images/t_000s.png} & 0 & 0 \\
+    \vcenter{\hbox{密集状態}} & \vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/crowded.png}}} & \vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/crowded/detection_outputs/annotated_images/t_000s.png}}} & \hfil 0 \hfil & \hfil 0 \hfil \\
     \hline
-    非組織群集 & \includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/strangers.png} & \includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/strangers/detection_outputs/annotated_images/t_000s.png} & 0 & 0 \\
+    \vcenter{\hbox{非組織群集}} & \vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/strangers.png}}} & \vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/strangers/detection_outputs/annotated_images/t_000s.png}}} & \hfil 0 \hfil & \hfil 0 \hfil \\
     \hline
-    視覚的クラッター & \includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/various_clothes.png} & \includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/various_clothes/detection_outputs/annotated_images/t_000s.png} & 0 & 0 \\
+    \vcenter{\hbox{視覚的クラッター}} & \vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/various_clothes.png}}} & \vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/various_clothes/detection_outputs/annotated_images/t_000s.png}}} & \hfil 0 \hfil & \hfil 0 \hfil \\
     \hline
-  \end{tabular}
+  \end{tabular}%
+  }
 \end{table}
 
 % パターン 5
