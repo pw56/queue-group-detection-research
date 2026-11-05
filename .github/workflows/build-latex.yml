@@ -5,6 +5,7 @@ on:
     paths:
       - '**/*.tex'
       - '**/*.bib'
+      - '**/.latexmkrc'
       - '**/*.png'
       - '**/*.pdf'
       - '**/*.eps'
