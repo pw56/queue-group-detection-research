@@ -5,13 +5,13 @@
 現場に設置したカメラ等から取得された標準的な二次元画像フレーム全体をそのまま入力とし、一般的なオブジェクト検出モデルを用いて画面内に存在する人物（\texttt{person} クラス）を一元的に列挙・検出する。
 
 \subsection{実験結果}
-実際のプログラムを用いて検証を行った際の実験結果を以下に示す。
+静止画を入力データとして検証を行った際の実験結果を表\ref{tab:approach01_results}に示す。
 緑色のバウンディングボックスは検出された人物、赤色のバウンディングボックスは同定されたグループを示している。
 
 \begin{table}[htbp]
   \centering
   \small
-  \caption{アプローチ01：実験結果の比較}
+  \caption{アプローチ01：実験結果の比較（静止画）}
   \label{tab:approach01_results}
   \adjustbox{max width=\textwidth}{%
   \begin{tabular}{|c|c|c|c|c|}
@@ -30,8 +30,29 @@
   }
 \end{table}
 
-% パターン 5
-% 動画は、最も理想的な入力フレーム、オクルージョン発生時のフレームを掲載する
+動画を入力データとして検証を行った際の実験結果を表\ref{tab:approach01_video_results}に示す。最も理想的な入力フレームおよびオクルージョン発生時のフレームを掲載している。
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{アプローチ01：実験結果の比較（動画）}
+  \label{tab:approach01_video_results}
+  \adjustbox{max width=\textwidth}{%
+  \begin{tabular}{|c|c|c|c|c|}
+    \hline
+    & 入力フレーム & 検出結果 & \begin{tabular}{c} 検出された \\ グループ数 \end{tabular} & 実際のグループ数との差 \\
+    \hline
+    $\vcenter{\hbox{標準状態}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/standard_video.png}}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/standard_video/detection_outputs/annotated_images/t_000s.png}}}$ & 0 & 0 \\
+    \hline
+    $\vcenter{\hbox{密集状態}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/crowded_video.png}}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/crowded_video/detection_outputs/annotated_images/t_000s.png}}}$ & 0 & 0 \\
+    \hline
+    $\vcenter{\hbox{非組織群集}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/strangers_video.png}}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/strangers_video/detection_outputs/annotated_images/t_000s.png}}}$ & 0 & 0 \\
+    \hline
+    $\vcenter{\hbox{視覚的クラッター}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/various_clothes_video.png}}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/various_clothes_video/detection_outputs/annotated_images/t_000s.png}}}$ & 0 & 0 \\
+    \hline
+  \end{tabular}%
+  }
+\end{table}
 
 \subsection{課題}
 ベースライン手法の明瞭となった課題は以下の通りである。
