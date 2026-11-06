@@ -38,7 +38,15 @@ jobs:
 
       # 解像度を中画質（150 dpi）に落として圧縮
       - name: Compress PDF document
-        run: gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile=compressed.pdf main.pdf
+        run: |
+          sudo chmod 666 main.pdf
+          gs -sDEVICE=pdfwrite \
+             -dCompatibilityLevel=1.4 \
+             -dPDFSETTINGS=/ebook \
+             -dNOPAUSE \
+             -dQUIET \
+             -dBATCH \
+             -sOutputFile=compressed.pdf main.pdf
 
       - name: Rename output PDF
         run: mv compressed.pdf "${{ env.PDF_OUTPUT_FILE }}"
