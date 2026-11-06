@@ -39,7 +39,6 @@ jobs:
       # 解像度を中画質（150 dpi）に落として圧縮
       - name: Compress PDF document
         run: |
-          sudo chmod 666 main.pdf
           gs -dNOSAFER \
              -sDEVICE=pdfwrite \
              -dCompatibilityLevel=1.4 \
