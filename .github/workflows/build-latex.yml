@@ -36,15 +36,13 @@ jobs:
           root_file: ${{ env.TEX_ROOT_FILE }}
           latexmk_use_lualatex: true
 
+      # latex-action が root 権限で生成した PDF の所有権を変更
+      - name: Fix PDF permissions
+        run: sudo chown $USER:$USER main.pdf
+
       # 解像度を中画質（150 dpi）に落として圧縮
       - name: Compress PDF document
         run: |
-          ls
-          TARGET_PDF=$(find . -maxdepth 2 -name "*.pdf" ! -name "compressed.pdf" | head -n 1)
-          if [ -z "$TARGET_PDF" ]; then
-            echo "Error: PDF file not found."
-            exit 1
-          fi
           gs -dNOSAFER \
              -sDEVICE=pdfwrite \
              -dCompatibilityLevel=1.4 \
@@ -52,7 +50,7 @@ jobs:
              -dNOPAUSE \
              -dQUIET \
              -dBATCH \
-             -sOutputFile=compressed.pdf "$TARGET_PDF"
+             -sOutputFile=compressed.pdf main.pdf
 
       - name: Rename output PDF
         run: mv compressed.pdf "${{ env.PDF_OUTPUT_FILE }}"
