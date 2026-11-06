@@ -25,14 +25,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      - name: Install Ghostscript
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ghostscript
+
       - name: Compile LaTeX document
         uses: xu-cheng/latex-action@v4
         with:
           root_file: ${{ env.TEX_ROOT_FILE }}
           latexmk_use_lualatex: true
 
+      # 解像度を中画質（150 dpi）に落として圧縮
+      - name: Compress PDF document
+        run: gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile=compressed.pdf main.pdf
+
       - name: Rename output PDF
-        run: mv main.pdf "${{ env.PDF_OUTPUT_FILE }}"
+        run: mv compressed.pdf "${{ env.PDF_OUTPUT_FILE }}"
 
       - name: Upload PDF Artifact
         uses: actions/upload-artifact@v7
