@@ -39,6 +39,12 @@ jobs:
       # 解像度を中画質（150 dpi）に落として圧縮
       - name: Compress PDF document
         run: |
+          ls
+          TARGET_PDF=$(find . -maxdepth 2 -name "*.pdf" ! -name "compressed.pdf" | head -n 1)
+          if [ -z "$TARGET_PDF" ]; then
+            echo "Error: PDF file not found."
+            exit 1
+          fi
           gs -dNOSAFER \
              -sDEVICE=pdfwrite \
              -dCompatibilityLevel=1.4 \
@@ -46,7 +52,7 @@ jobs:
              -dNOPAUSE \
              -dQUIET \
              -dBATCH \
-             -sOutputFile=compressed.pdf main.pdf
+             -sOutputFile=compressed.pdf "$TARGET_PDF"
 
       - name: Rename output PDF
         run: mv compressed.pdf "${{ env.PDF_OUTPUT_FILE }}"
