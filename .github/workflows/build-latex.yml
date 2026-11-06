@@ -40,7 +40,8 @@ jobs:
       - name: Compress PDF document
         run: |
           sudo chmod 666 main.pdf
-          gs -sDEVICE=pdfwrite \
+          gs -dNOSAFER \
+             -sDEVICE=pdfwrite \
              -dCompatibilityLevel=1.4 \
              -dPDFSETTINGS=/ebook \
              -dNOPAUSE \
