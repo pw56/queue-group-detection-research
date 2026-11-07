@@ -40,7 +40,6 @@ jobs:
       - name: Fix PDF permissions
         run: sudo chown $USER:$USER main.pdf
 
-      # 解像度を中画質（150 dpi）に落として圧縮
       - name: Compress PDF document
         run: |
           gs -dNOSAFER \
