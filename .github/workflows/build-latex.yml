@@ -46,7 +46,7 @@ jobs:
           gs -dNOSAFER \
              -sDEVICE=pdfwrite \
              -dCompatibilityLevel=1.4 \
-             -dPDFSETTINGS=/ebook \
+             -dPDFSETTINGS=/prepress \
              -dNOPAUSE \
              -dQUIET \
              -dBATCH \
