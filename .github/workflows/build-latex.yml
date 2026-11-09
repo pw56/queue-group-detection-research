@@ -27,8 +27,8 @@ jobs:
 
       - name: Install Ghostscript
         run: |
-          sudo apt-get install -y --no-install-recommends ghostscript poppler-data || \
-          (sudo apt-get update && sudo apt-get install -y --no-install-recommends ghostscript poppler-data)
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -o Dpkg::Options::="--path-exclude=/usr/share/man/*" ghostscript poppler-data || \
+          (sudo DEBIAN_FRONTEND=noninteractive apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -o Dpkg::Options::="--path-exclude=/usr/share/man/*" ghostscript poppler-data)
 
       - name: Extract TeX packages
         id: tex-packages
