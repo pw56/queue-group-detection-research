@@ -71,8 +71,29 @@ jobs:
             fontspec
             ${{ steps.tex-packages.outputs.packages }}
 
+      - name: Cache LaTeX intermediate files
+        uses: actions/cache@v4
+        with:
+          path: |
+            *.aux
+            *.bbl
+            *.blg
+            *.fls
+            *.fdb_latexmk
+            *.log
+            *.out
+            *.toc
+          key: latex-aux-${{ hashFiles('**/*.tex', '**/*.bib') }}
+          restore-keys: |
+            latex-aux-
+
       - name: Compile LaTeX document
-        run: latexmk -lualatex "${{ env.TEX_ROOT_FILE }}"
+        run: |
+          latexmk -lualatex "${{ env.TEX_ROOT_FILE }}" || (
+            latexmk -C
+            rm -f *.aux *.bbl *.blg *.fls *.fdb_latexmk *.log *.out *.toc
+            latexmk -lualatex "${{ env.TEX_ROOT_FILE }}"
+          )
 
       - name: Compress PDF document
         run: |
