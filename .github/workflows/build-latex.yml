@@ -4,6 +4,8 @@ on:
   push:
     paths:
       - '**/*.tex'
+      - '**/*.bib'
+      - '**/.latexmkrc'
       - '**/*.png'
       - '**/*.pdf'
       - '**/*.eps'
@@ -13,7 +15,7 @@ on:
 
 env:
   TEX_ROOT_FILE: "main.tex"
-  PDF_OUTPUT_FILE: "main.pdf"
+  PDF_OUTPUT_FILE: ${{ vars.PDF_OUTPUT_FILE }}
 
 jobs:
   build:
@@ -23,14 +25,85 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Compile LaTeX document
-        uses: xu-cheng/latex-action@v4
+      - name: Install and cache APT packages
+        uses: awalsh128/cache-apt-pkgs-action@v1
         with:
-          compiler: lualatex
-          root_file: ${{ env.TEX_ROOT_FILE }}
+          packages: ghostscript poppler-data
+          version: 1.0
+
+      - name: Extract TeX packages
+        id: tex-packages
+        run: |
+          PKGS=$(grep -rohE '\\(usepackage|documentclass)(\[[^]]*\])?\{[^}]*\}' . --include="*.tex" \
+            | sed -E 's/.*\{([^}]*)\}/\1/' \
+            | tr ',' '\n' \
+            | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
+            | sed -E 's/^(bxjsarticle|bxjsbook|bxjsreport)$/bxjscls/; s/^tikz$/pgf/; s/^amssymb$/amsfonts/; s/^array$/tools/; s/^verbatim$/tools/; s/^calc$/tools/' \
+            | grep -vE '^(graphicx|amsmath|hyperref|xcolor|geometry|etoolbox|url)$' \
+            | sort -u)
+          echo "packages<<EOF" >> $GITHUB_OUTPUT
+          echo "$PKGS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Setup TeX Live
+        uses: zauguin/install-texlive@v4
+        with:
+          packages: |
+            scheme-basic
+            latexmk
+            luatexja
+            haranoaji
+            platex
+            pbibtex-base
+            collectbox
+            environ
+            trimspaces
+            bxjscls
+            type1cm
+            fontspec
+            ${{ steps.tex-packages.outputs.packages }}
+
+      - name: Cache LaTeX intermediate files
+        uses: actions/cache@v6
+        with:
+          path: |
+            *.aux
+            *.bbl
+            *.blg
+            *.fls
+            *.fdb_latexmk
+            *.log
+            *.out
+            *.toc
+          key: latex-aux-${{ hashFiles('**/*.tex', '**/*.bib') }}
+          restore-keys: |
+            latex-aux-
+
+      - name: Compile LaTeX document
+        run: |
+          latexmk -lualatex "${{ env.TEX_ROOT_FILE }}" || (
+            latexmk -C
+            rm -f *.aux *.bbl *.blg *.fls *.fdb_latexmk *.log *.out *.toc
+            latexmk -lualatex "${{ env.TEX_ROOT_FILE }}"
+          )
+
+      - name: Compress PDF document
+        run: |
+          gs -dNOSAFER \
+             -sDEVICE=pdfwrite \
+             -dCompatibilityLevel=1.4 \
+             -dPDFSETTINGS=/prepress \
+             -dNOPAUSE \
+             -dQUIET \
+             -dBATCH \
+             -sOutputFile=compressed.pdf main.pdf
+
+      - name: Rename output PDF
+        run: mv compressed.pdf "${{ env.PDF_OUTPUT_FILE }}"
 
       - name: Upload PDF Artifact
         uses: actions/upload-artifact@v7
         with:
           name: latex-pdf-document
           path: ${{ env.PDF_OUTPUT_FILE }}
+          archive: false

@@ -38,6 +38,18 @@
 latexmk -lualatex main.tex
 ```
 
+埋め込み画像の最適化を行う場合は、ビルド後に以下のコマンドを実行してください（※環境にGhostscriptがインストールされている必要があります）。
+```bash
+gs -dNOSAFER \
+   -sDEVICE=pdfwrite \
+   -dCompatibilityLevel=1.4 \
+   -dPDFSETTINGS=/prepress \
+   -dNOPAUSE \
+   -dQUIET \
+   -dBATCH \
+   -sOutputFile=compressed.pdf main.pdf
+```
+
 ### デモページのビルド
 デモ用のReactアプリをローカル環境で動かす場合は、各アプローチのディレクトリ（例: `src/approach_01_baseline`）に移動し、以下のコマンドを実行してください。
   
