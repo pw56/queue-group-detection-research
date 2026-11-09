@@ -40,6 +40,7 @@ jobs:
             luatexja
             haranoaji
             platex
+            jbibtex-base
 
       - name: Install missing packages
         run: texliveonfly --compiler=lualatex "${{ env.TEX_ROOT_FILE }}" || true
