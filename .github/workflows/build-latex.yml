@@ -37,7 +37,6 @@ jobs:
             | sed -E 's/.*\{([^}] )\}/\1/' \
             | tr ',' '\n' \
             | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
-
             | sed -E 's/^(bxjsarticle|bxjsbook|bxjsreport)$/bxjscls/; s/^tikz$/pgf/; s/^amssymb$/amsfonts/; s/^array$/tools/; s/^verbatim$/tools/; s/^calc$/tools/' \
             | grep -vE '^(graphicx|amsmath|hyperref|xcolor|geometry|etoolbox|url|fontspec)$' \
             | sort -u)
