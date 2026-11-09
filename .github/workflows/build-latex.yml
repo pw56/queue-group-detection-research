@@ -64,7 +64,7 @@ jobs:
             ${{ steps.tex-packages.outputs.packages }}
 
       - name: Cache LaTeX intermediate files
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             *.aux
