@@ -38,7 +38,7 @@ jobs:
             | tr ',' '\n' \
             | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
             | sed -E 's/^(bxjsarticle|bxjsbook|bxjsreport)$/bxjscls/; s/^tikz$/pgf/; s/^amssymb$/amsfonts/; s/^array$/tools/; s/^verbatim$/tools/; s/^calc$/tools/' \
-            | grep -vE '^(graphicx|amsmath|hyperref|xcolor|geometry|etoolbox|url|fontspec)$' \
+            | grep -vE '^(graphicx|amsmath|hyperref|xcolor|geometry|etoolbox|url)$' \
             | sort -u)
           echo "packages<<EOF" >> $GITHUB_OUTPUT
           echo "$PKGS" >> $GITHUB_OUTPUT
@@ -59,6 +59,7 @@ jobs:
             trimspaces
             bxjscls
             type1cm
+            fontspec
             ${{ steps.tex-packages.outputs.packages }}
 
       - name: Compile LaTeX document
