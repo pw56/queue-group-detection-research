@@ -31,6 +31,11 @@ jobs:
           packages: ghostscript poppler-data
           version: 1.0
 
+      - name: Install Ghostscript
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -o Dpkg::Options::="--path-exclude=/usr/share/man/*" ghostscript poppler-data || \
+          (sudo DEBIAN_FRONTEND=noninteractive apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -o Dpkg::Options::="--path-exclude=/usr/share/man/*" ghostscript poppler-data)
+
       - name: Extract TeX packages
         id: tex-packages
         run: |
