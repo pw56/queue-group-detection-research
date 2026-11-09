@@ -30,15 +30,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ghostscript
 
-      - name: Compile LaTeX document
-        uses: xu-cheng/latex-action@v4
+      - name: Setup TeX Live
+        uses: zauguin/install-texlive@v4
         with:
-          root_file: ${{ env.TEX_ROOT_FILE }}
-          latexmk_use_lualatex: true
+          packages: |
+            scheme-basic
+            latexmk
+            texliveonfly
+            luatexja
+            haranoaji
 
-      # latex-action が root 権限で生成した PDF の所有権を変更
-      - name: Fix PDF permissions
-        run: sudo chown $USER:$USER main.pdf
+      - name: Compile LaTeX document
+        run: texliveonfly --compiler=lualatex "${{ env.TEX_ROOT_FILE }}"
 
       - name: Compress PDF document
         run: |
