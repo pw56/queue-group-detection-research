@@ -58,6 +58,7 @@ jobs:
             environ
             trimspaces
             bxjscls
+            type1cm
             ${{ steps.tex-packages.outputs.packages }}
 
       - name: Compile LaTeX document
