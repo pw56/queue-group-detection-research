@@ -30,20 +30,35 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ghostscript
 
+      - name: Extract TeX packages
+        id: tex-packages
+        run: |
+          PKGS=$(grep -rohE '\\(usepackage|documentclass)(\[[^]]*\])?\{[^}] \}' . --include="*.tex" \
+            | sed -E 's/.*\{([^}] )\}/\1/' \
+            | tr ',' '\n' \
+            | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
+
+            | sed -E 's/^(bxjsarticle|bxjsbook|bxjsreport)$/bxjscls/; s/^tikz$/pgf/; s/^amssymb$/amsfonts/; s/^array$/tools/; s/^verbatim$/tools/; s/^calc$/tools/' \
+            | grep -vE '^(graphicx|amsmath|hyperref|xcolor|geometry|etoolbox|url|fontspec)$' \
+            | sort -u)
+          echo "packages<<EOF" >> $GITHUB_OUTPUT
+          echo "$PKGS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Setup TeX Live
         uses: zauguin/install-texlive@v4
         with:
           packages: |
             scheme-basic
             latexmk
-            texliveonfly
             luatexja
             haranoaji
             platex
             pbibtex-base
-
-      - name: Install missing packages
-        run: texliveonfly --compiler=lualatex "${{ env.TEX_ROOT_FILE }}" || true
+            collectbox
+            environ
+            trimspaces
+            ${{ steps.tex-packages.outputs.packages }}
 
       - name: Compile LaTeX document
         run: latexmk -lualatex "${{ env.TEX_ROOT_FILE }}"
