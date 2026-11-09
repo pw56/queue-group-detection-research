@@ -39,8 +39,7 @@ jobs:
             texliveonfly
             luatexja
             haranoaji
-            bibtex
-            biber
+            platex
 
       - name: Install missing packages
         run: texliveonfly --compiler=lualatex "${{ env.TEX_ROOT_FILE }}" || true
