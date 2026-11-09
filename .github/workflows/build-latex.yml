@@ -25,19 +25,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Cache APT packages
-        id: cache-apt
+      - name: Install and cache APT packages
         uses: awalsh128/cache-apt-pkgs-action@v1
         with:
           packages: ghostscript poppler-data
           version: 1.0
-          execute_install: false
-
-      - name: Install Ghostscript
-        if: steps.cache-apt.outputs.cache-hit != 'true'
-        run: |
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -o Dpkg::Options::="--path-exclude=/usr/share/man/*" ghostscript poppler-data || \
-          (sudo DEBIAN_FRONTEND=noninteractive apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -o Dpkg::Options::="--path-exclude=/usr/share/man/*" ghostscript poppler-data)
 
       - name: Extract TeX packages
         id: tex-packages
