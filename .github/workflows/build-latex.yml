@@ -33,8 +33,8 @@ jobs:
       - name: Extract TeX packages
         id: tex-packages
         run: |
-          PKGS=$(grep -rohE '\\(usepackage|documentclass)(\[[^]]*\])?\{[^}] \}' . --include="*.tex" \
-            | sed -E 's/.*\{([^}] )\}/\1/' \
+          PKGS=$(grep -rohE '\\(usepackage|documentclass)(\[[^]]*\])?\{[^}]*\}' . --include="*.tex" \
+            | sed -E 's/.*\{([^}]*)\}/\1/' \
             | tr ',' '\n' \
             | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
             | sed -E 's/^(bxjsarticle|bxjsbook|bxjsreport)$/bxjscls/; s/^tikz$/pgf/; s/^amssymb$/amsfonts/; s/^array$/tools/; s/^verbatim$/tools/; s/^calc$/tools/' \
@@ -57,6 +57,7 @@ jobs:
             collectbox
             environ
             trimspaces
+            bxjscls
             ${{ steps.tex-packages.outputs.packages }}
 
       - name: Compile LaTeX document
