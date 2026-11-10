@@ -46,11 +46,17 @@
       $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/queue_video/extracted_frames/t_012s.png}}}$ &
       $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/queue_video/detection_outputs/annotated_images/t_012s.png}}}$ &
       \jsonlen{experiment/results/approach_01_baseline/queue_video/detection_outputs/labels/t_012s.json} &
-      \ifnum\numexpr
-        \jsonlen{experiment/results/approach_01_baseline/queue_video/detection_outputs/labels/t_012s.json} - 0\relax>0 +\fi\the\numexpr
+      % 符号と数値
+        \ifnum\numexpr\jsonlen{experiment/results/approach_01_baseline/queue_video/detection_outputs/labels/t_012s.json} - 0\relax>0 +\fi\the\numexpr
         \jsonlen{experiment/results/approach_01_baseline/queue_video/detection_outputs/labels/t_012s.json} - 0\relax \\
     \hline
-    $\vcenter{\hbox{オクルージョン発生時}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/queue_video/extracted_frames/t_017s.png}}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/queue_video/detection_outputs/annotated_images/t_017s.png}}}$ & \jsonlen{experiment/results/approach_01_baseline/queue_video/detection_outputs/labels/t_017s.json} & \ifnum\numexpr \jsonlen{experiment/results/approach_01_baseline/queue_video/detection_outputs/labels/t_017s.json} - 0\relax>0 +\fi\the\numexpr \jsonlen{experiment/results/approach_01_baseline/queue_video/detection_outputs/labels/t_017s.json} - 0\relax \\
+    $\vcenter{\hbox{オクルージョン発生時}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/queue_video/extracted_frames/t_017s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/queue_video/detection_outputs/annotated_images/t_017s.png}}}$ &
+      \jsonlen{experiment/results/approach_01_baseline/queue_video/detection_outputs/labels/t_017s.json} &
+      % 符号と数値
+        \ifnum\numexpr\jsonlen{experiment/results/approach_01_baseline/queue_video/detection_outputs/labels/t_017s.json} - 0\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_01_baseline/queue_video/detection_outputs/labels/t_017s.json} - 0\relax \\
     \hline
   \end{tabular}%
   }
