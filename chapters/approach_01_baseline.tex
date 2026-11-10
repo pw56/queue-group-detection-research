@@ -15,18 +15,57 @@
   \label{tab:approach01_image_results}
   \adjustbox{max width=\textwidth}{%
   \begin{tabular}{|c|c|c|c|c|}
+    
     \hline
-    & 入力画像 & 検出結果 & \begin{tabular}{c} 検出された \\ グループ数 \end{tabular} & 実際のグループ数との差 \\
+
+      & 入力画像
+      & 検出結果
+      & \begin{tabular}{c} 検出された \\ グループ数 \end{tabular}
+      & 実際のグループ数との差 \\
+    
     \hline
-    $\vcenter{\hbox{標準状態}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/standard.png}}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/standard/detection_outputs/annotated_images/t_001s.png}}}$ & \jsonlen{experiment/results/approach_01_baseline/standard/detection_outputs/labels/t_001s.json} & \ifnum\numexpr \jsonlen{experiment/results/approach_01_baseline/standard/detection_outputs/labels/t_001s.json} - 0\relax>0 +\fi\the\numexpr \jsonlen{experiment/results/approach_01_baseline/standard/detection_outputs/labels/t_001s.json} - 0\relax \\
+    
+    $\vcenter{\hbox{標準状態}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/standard.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/standard/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_01_baseline/standard/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_01_baseline/standard/detection_outputs/labels/t_001s.json} - 0\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_01_baseline/standard/detection_outputs/labels/t_001s.json} - 0\relax \\
+    
     \hline
-    $\vcenter{\hbox{密集状態}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/crowded.png}}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/crowded/detection_outputs/annotated_images/t_001s.png}}}$ & \jsonlen{experiment/results/approach_01_baseline/crowded/detection_outputs/labels/t_001s.json} & \ifnum\numexpr \jsonlen{experiment/results/approach_01_baseline/crowded/detection_outputs/labels/t_001s.json} - 0\relax>0 +\fi\the\numexpr \jsonlen{experiment/results/approach_01_baseline/crowded/detection_outputs/labels/t_001s.json} - 0\relax \\
+    
+    $\vcenter{\hbox{密集状態}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/crowded.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/crowded/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_01_baseline/crowded/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_01_baseline/crowded/detection_outputs/labels/t_001s.json} - 0\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_01_baseline/crowded/detection_outputs/labels/t_001s.json} - 0\relax \\
+    
     \hline
-    $\vcenter{\hbox{非組織群集}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/strangers.png}}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/strangers/detection_outputs/annotated_images/t_001s.png}}}$ & \jsonlen{experiment/results/approach_01_baseline/strangers/detection_outputs/labels/t_001s.json} & \ifnum\numexpr \jsonlen{experiment/results/approach_01_baseline/strangers/detection_outputs/labels/t_001s.json} - 0\relax>0 +\fi\the\numexpr \jsonlen{experiment/results/approach_01_baseline/strangers/detection_outputs/labels/t_001s.json} - 0\relax \\
+    
+    $\vcenter{\hbox{非組織群集}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/strangers.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/strangers/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_01_baseline/strangers/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_01_baseline/strangers/detection_outputs/labels/t_001s.json} - 0\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_01_baseline/strangers/detection_outputs/labels/t_001s.json} - 0\relax \\
+    
     \hline
-    $\vcenter{\hbox{視覚的クラッター}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/various_clothes.png}}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/various_clothes/detection_outputs/annotated_images/t_001s.png}}}$ & \jsonlen{experiment/results/approach_01_baseline/various_clothes/detection_outputs/labels/t_001s.json} & \ifnum\numexpr \jsonlen{experiment/results/approach_01_baseline/various_clothes/detection_outputs/labels/t_001s.json} - 0\relax>0 +\fi\the\numexpr \jsonlen{experiment/results/approach_01_baseline/various_clothes/detection_outputs/labels/t_001s.json} - 0\relax \\
+    
+    $\vcenter{\hbox{視覚的クラッター}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/various_clothes.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/various_clothes/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_01_baseline/various_clothes/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_01_baseline/various_clothes/detection_outputs/labels/t_001s.json} - 0\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_01_baseline/various_clothes/detection_outputs/labels/t_001s.json} - 0\relax \\
+    
     \hline
-  \end{tabular}%
+
+  \end{tabular}
   }
 \end{table}
 
@@ -39,9 +78,16 @@
   \label{tab:approach01_video_results}
   \adjustbox{max width=\textwidth}{%
   \begin{tabular}{|c|c|c|c|c|}
+
     \hline
-    & 入力フレーム & 検出結果 & \begin{tabular}{c} 検出された \\ グループ数 \end{tabular} & 実際のグループ数との差 \\
+
+      & 入力フレーム
+      & 検出結果
+      & \begin{tabular}{c} 検出された \\ グループ数 \end{tabular}
+      & 実際のグループ数との差 \\
+    
     \hline
+
     $\vcenter{\hbox{理想的な状態}}$ &
       $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/queue_video/extracted_frames/t_012s.png}}}$ &
       $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/queue_video/detection_outputs/annotated_images/t_012s.png}}}$ &
@@ -49,7 +95,9 @@
       % 符号と数値
         \ifnum\numexpr\jsonlen{experiment/results/approach_01_baseline/queue_video/detection_outputs/labels/t_012s.json} - 0\relax>0 +\fi\the\numexpr
         \jsonlen{experiment/results/approach_01_baseline/queue_video/detection_outputs/labels/t_012s.json} - 0\relax \\
+    
     \hline
+    
     $\vcenter{\hbox{オクルージョン発生時}}$ &
       $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/queue_video/extracted_frames/t_017s.png}}}$ &
       $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/queue_video/detection_outputs/annotated_images/t_017s.png}}}$ &
@@ -57,7 +105,9 @@
       % 符号と数値
         \ifnum\numexpr\jsonlen{experiment/results/approach_01_baseline/queue_video/detection_outputs/labels/t_017s.json} - 0\relax>0 +\fi\the\numexpr
         \jsonlen{experiment/results/approach_01_baseline/queue_video/detection_outputs/labels/t_017s.json} - 0\relax \\
+    
     \hline
+    
   \end{tabular}%
   }
 \end{table}
