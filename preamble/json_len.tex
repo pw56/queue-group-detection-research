@@ -15,4 +15,4 @@ function print_json_len(filepath)
     end
 end
 \end{luacode*}
-\newcommand{\jsonlen}{\directlua{print_json_len("\luaescapestring{\detokenize{#1}}")}}
+\newcommand{\jsonlen}[1]{\directlua{print_json_len("\luaescapestring{\detokenize{#1}}")}}
