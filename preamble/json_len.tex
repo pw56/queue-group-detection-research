@@ -1,0 +1,18 @@
+\begin{luacode*}
+function print_json_len(filepath)
+    local f = io.open(filepath, "r")
+    if not f then
+        tex.print("0")
+        return
+    end
+    local content = f:read("*all")
+    f:close()
+    local data = utilities.json.tolua(content)
+    if type(data) == "table" then
+        tex.print(#data)
+    else
+        tex.print("0")
+    end
+end
+\end{luacode*}
+\newcommand{\jsonlen}{\directlua{print_json_len("\luaescapestring{\detokenize{#1}}")}}
