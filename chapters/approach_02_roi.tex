@@ -5,12 +5,60 @@
 
 画角内に事前に多角形または矩形のROIを設定し、入力画像フレームからROI領域外の背景や周辺通路を物理的に切り落とすか、または領域外に位置する検出結果を事前にフィルタリング・無効化する構造とした。
 
-\subsection{結果およびアプローチ01との比較・課題}
+\subsection{実験結果およびアプローチ01との比較・課題}
+
+\subsubsection{実験結果}
+静止画を入力データとして検証を行った際の実験結果を表\ref{tab:approach02_image_results}に示す。
+なお、いずれの実験結果においても、緑色のバウンディングボックスは検出された人物、赤色のバウンディングボックスは同定されたグループを示している。
+
+\begin{table}[H]
+  \centering
+  \small
+  \caption{アプローチ01：実験結果の比較（静止画）}
+  \label{tab:approach02_iamge_results}
+  \adjustbox{max width=\textwidth}{%
+  \begin{tabular}{|c|c|c|c|c|}
+    \hline
+    & 入力画像 & 検出結果 & \begin{tabular}{c} 検出された \\ グループ数 \end{tabular} & 実際のグループ数との差 \\
+    \hline
+    $\vcenter{\hbox{標準状態}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/standard.png}}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/standard/detection_outputs/annotated_images/t_000s.png}}}$ & 0 & 0 \\
+    \hline
+    $\vcenter{\hbox{密集状態}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/crowded.png}}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/crowded/detection_outputs/annotated_images/t_000s.png}}}$ & 0 & 0 \\
+    \hline
+    $\vcenter{\hbox{非組織群集}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/strangers.png}}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/strangers/detection_outputs/annotated_images/t_000s.png}}}$ & 0 & 0 \\
+    \hline
+    $\vcenter{\hbox{視覚的クラッター}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/input_data/media_files/various_clothes.png}}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/various_clothes/detection_outputs/annotated_images/t_000s.png}}}$ & 0 & 0 \\
+    \hline
+  \end{tabular}%
+  }
+\end{table}
+
+動画を入力データとして検証を行った際の実験結果を表\ref{tab:approach02_video_results}に示す。最も理想的な入力フレームおよびオクルージョン発生時のフレームを掲載している。
+
+\begin{table}[H]
+  \centering
+  \small
+  \caption{アプローチ01：実験結果の比較（動画）}
+  \label{tab:approach02_video_results}
+  \adjustbox{max width=\textwidth}{%
+  \begin{tabular}{|c|c|c|c|c|}
+    \hline
+    & 入力フレーム & 検出結果 & \begin{tabular}{c} 検出された \\ グループ数 \end{tabular} & 実際のグループ数との差 \\
+    \hline
+    $\vcenter{\hbox{理想的な状態}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/queue_video/extracted_frames/t_012s.png}}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/queue_video/detection_outputs/annotated_images/t_012s.png}}}$ & 0 & 0 \\
+    \hline
+    $\vcenter{\hbox{オクルージョン発生時}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/queue_video/extracted_frames/t_017s.png}}}$ & $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/queue_video/detection_outputs/annotated_images/t_017s.png}}}$ & 0 & 0 \\
+    \hline
+  \end{tabular}%
+  }
+\end{table}
 
 \subsubsection{アプローチ01との比較}
 ROI処理の適用により、待機列の外部を移動する通行人や背景の静止オブジェクトに対する誤検出が大幅に削減された。計測対象範囲が厳密に限定されたことで、待機列内の実人数に近い精度の高い検出領域を確保することが可能となった。
 
-\subsubsection{判明した課題}
+\subsection{課題}
+アプローチ02の明瞭となった課題は以下の通りである。
+
 \begin{enumerate}
     \item \textbf{密集部位における人物切り出し・検出の限界}：
     検出範囲を待機列内に制限したものの、オブジェクト検出モデル自体の単一バウンディングボックス抽出能力の限界により、人物が極度に近接している場所での重複検出や検出漏れ（遮蔽による影響）は依然として解決されなかった。
