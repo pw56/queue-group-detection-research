@@ -15,13 +15,125 @@
     \item \textbf{モジュール構造の再編}：ディレクトリ構成を見直し、ルートの \texttt{detectPeople.ts} をバレルファイルから Worker 呼び出しを仲介する単一のエントリーポイントへと役割を変更・保持させた。
 \end{itemize}
 
-\subsection{結果およびアプローチ09との比較・課題}
+\subsection{実験結果およびアプローチ09との比較・課題}
+
+\subsubsection{実験結果}
+静止画を入力データとして検証を行った際の実験結果を表\ref{tab:approach10_image_results}に示す。
+なお、いずれの実験結果においても、緑色のバウンディングボックスは検出された人物、赤色のバウンディングボックスは同定されたグループを示している。
+
+\begin{table}[H]
+  \centering
+  \small
+  \caption{アプローチ10：実験結果の比較（静止画）}
+  \label{tab:approach10_image_results}
+  \adjustbox{max width=\textwidth}{%
+  \begin{tabular}{|c|c|c|c|c|}
+    
+    \hline
+
+      & \begin{tabular}{c} 前アプローチの \\ 検出結果 \end{tabular}
+      & 検出結果
+      & \begin{tabular}{c} 検出された \\ グループ数 \end{tabular}
+      & 実際のグループ数との差 \\
+    
+    \hline
+    
+    $\vcenter{\hbox{標準状態}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_09_orientation_distance_grouping/standard/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_10_change_detection_model/standard/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_10_change_detection_model/standard/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_10_change_detection_model/standard/detection_outputs/labels/t_001s.json} - \gtstandard\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_10_change_detection_model/standard/detection_outputs/labels/t_001s.json} - \gtstandard\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{密集状態}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_09_orientation_distance_grouping/crowded/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_10_change_detection_model/crowded/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_10_change_detection_model/crowded/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_10_change_detection_model/crowded/detection_outputs/labels/t_001s.json} - \gtcrowded\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_10_change_detection_model/crowded/detection_outputs/labels/t_001s.json} - \gtcrowded\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{非組織群集}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_09_orientation_distance_grouping/strangers/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_10_change_detection_model/strangers/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_10_change_detection_model/strangers/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_10_change_detection_model/strangers/detection_outputs/labels/t_001s.json} - \gtstrangers\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_10_change_detection_model/strangers/detection_outputs/labels/t_001s.json} - \gtstrangers\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{視覚的クラッター}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_09_orientation_distance_grouping/various_clothes/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_10_change_detection_model/various_clothes/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_10_change_detection_model/various_clothes/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_10_change_detection_model/various_clothes/detection_outputs/labels/t_001s.json} - \gtvariousclothes\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_10_change_detection_model/various_clothes/detection_outputs/labels/t_001s.json} - \gtvariousclothes\relax \\
+    
+    \hline
+
+  \end{tabular}
+  }
+\end{table}
+
+動画を入力データとして検証を行った際の実験結果を表\ref{tab:approach10_video_results}に示す。最も理想的な入力フレームおよびオクルージョン発生時のフレームを掲載している。
+
+\begin{table}[H]
+  \centering
+  \small
+  \caption{アプローチ10：実験結果の比較（動画）}
+  \label{tab:approach10_video_results}
+  \adjustbox{max width=\textwidth}{%
+  \begin{tabular}{|c|c|c|c|c|}
+
+    \hline
+
+      & \begin{tabular}{c} 前アプローチの \\ 検出結果 \end{tabular}
+      & 検出結果
+      & \begin{tabular}{c} 検出された \\ グループ数 \end{tabular}
+      & 実際のグループ数との差 \\
+    
+    \hline
+
+    $\vcenter{\hbox{理想的な状態}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_09_orientation_distance_grouping/queue_video/detection_outputs/annotated_images/t_012s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_10_change_detection_model/queue_video/detection_outputs/annotated_images/t_012s.png}}}$ &
+      \jsonlen{experiment/results/approach_10_change_detection_model/queue_video/detection_outputs/labels/t_012s.json} &
+      % 符号と数値
+        \ifnum\numexpr\jsonlen{experiment/results/approach_10_change_detection_model/queue_video/detection_outputs/labels/t_010s.json} - \gtvideoideal\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_10_change_detection_model/queue_video/detection_outputs/labels/t_012s.json} - \gtvideoideal\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{オクルージョン発生時}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_09_orientation_distance_grouping/queue_video/detection_outputs/annotated_images/t_017s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_10_change_detection_model/queue_video/detection_outputs/annotated_images/t_017s.png}}}$ &
+      \jsonlen{experiment/results/approach_10_change_detection_model/queue_video/detection_outputs/labels/t_017s.json} &
+      % 符号と数値
+        \ifnum\numexpr\jsonlen{experiment/results/approach_10_change_detection_model/queue_video/detection_outputs/labels/t_017s.json} - \gtvideoocclusion\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_10_change_detection_model/queue_video/detection_outputs/labels/t_017s.json} - \gtvideoocclusion\relax \\
+    
+    \hline
+    
+  \end{tabular}%
+  }
+\end{table}
 
 \subsubsection{アプローチ09との比較}
 YOLOv12 Nano への移行とX座標ソートベースの高速統合アルゴリズムの導入により、一次検出の精度と処理速度が大幅に向上した。また、DOM依存を排除して Worker スレッドへ全処理を移管したことで、メインUIスレッドの負荷がさらに軽減され、メモリ管理の堅牢性と描画パフォーマンスの両立が達成された。
 
-\subsubsection{判明した課題}
+\subsection{課題}
+アプローチ10の明瞭となった課題は以下の通りである。
+
 \begin{enumerate}
     \item \textbf{待機列内における前後跨ぎグループの判定漏れ}：
     検出精度および人物バウンディングボックスの形成速度は改善されたものの、アプローチ09同様、物理的な横並び距離だけでは「スマートフォン操作や会話によって前後の列に跨って構成されているグループ（カップルや複数人のグループ）」を識別できない問題は未解決のまま残された。
 \end{enumerate}
+
+\clearpage % 視認性のために改ページ挿入

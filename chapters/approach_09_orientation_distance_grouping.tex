@@ -7,15 +7,127 @@
 
 グループ判定においては、個々の人物のバウンディングボックス配置と身体の向きベクトルから待機列全体を表現する1本の近似曲線（列線）を算出するアルゴリズム（\texttt{estimateQueueLine}）を構築した。この列線に対して物理的に横並びに位置する人物同士をグループとして識別するロジック（\texttt{groupByDistance}）を実装し、従来の空間距離のみに依存していた簡易的なグループ化ロジック（\texttt{convertToGroups}）を完全に刷新・代替した。
 
-\subsection{結果およびアプローチ08との比較・課題}
+\subsection{実験結果およびアプローチ08との比較・課題}
+
+\subsubsection{実験結果}
+静止画を入力データとして検証を行った際の実験結果を表\ref{tab:approach09_image_results}に示す。
+なお、いずれの実験結果においても、緑色のバウンディングボックスは検出された人物、赤色のバウンディングボックスは同定されたグループを示している。
+
+\begin{table}[H]
+  \centering
+  \small
+  \caption{アプローチ09：実験結果の比較（静止画）}
+  \label{tab:approach09_image_results}
+  \adjustbox{max width=\textwidth}{%
+  \begin{tabular}{|c|c|c|c|c|}
+    
+    \hline
+
+      & \begin{tabular}{c} 前アプローチの \\ 検出結果 \end{tabular}
+      & 検出結果
+      & \begin{tabular}{c} 検出された \\ グループ数 \end{tabular}
+      & 実際のグループ数との差 \\
+    
+    \hline
+    
+    $\vcenter{\hbox{標準状態}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_08_vertical_fragment_consolidation/standard/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_09_orientation_distance_grouping/standard/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_09_orientation_distance_grouping/standard/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_09_orientation_distance_grouping/standard/detection_outputs/labels/t_001s.json} - \gtstandard\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_09_orientation_distance_grouping/standard/detection_outputs/labels/t_001s.json} - \gtstandard\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{密集状態}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_08_vertical_fragment_consolidation/crowded/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_09_orientation_distance_grouping/crowded/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_09_orientation_distance_grouping/crowded/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_09_orientation_distance_grouping/crowded/detection_outputs/labels/t_001s.json} - \gtcrowded\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_09_orientation_distance_grouping/crowded/detection_outputs/labels/t_001s.json} - \gtcrowded\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{非組織群集}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_08_vertical_fragment_consolidation/strangers/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_09_orientation_distance_grouping/strangers/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_09_orientation_distance_grouping/strangers/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_09_orientation_distance_grouping/strangers/detection_outputs/labels/t_001s.json} - \gtstrangers\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_09_orientation_distance_grouping/strangers/detection_outputs/labels/t_001s.json} - \gtstrangers\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{視覚的クラッター}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_08_vertical_fragment_consolidation/various_clothes/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_09_orientation_distance_grouping/various_clothes/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_09_orientation_distance_grouping/various_clothes/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_09_orientation_distance_grouping/various_clothes/detection_outputs/labels/t_001s.json} - \gtvariousclothes\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_09_orientation_distance_grouping/various_clothes/detection_outputs/labels/t_001s.json} - \gtvariousclothes\relax \\
+    
+    \hline
+
+  \end{tabular}
+  }
+\end{table}
+
+動画を入力データとして検証を行った際の実験結果を表\ref{tab:approach09_video_results}に示す。最も理想的な入力フレームおよびオクルージョン発生時のフレームを掲載している。
+
+\begin{table}[H]
+  \centering
+  \small
+  \caption{アプローチ09：実験結果の比較（動画）}
+  \label{tab:approach09_video_results}
+  \adjustbox{max width=\textwidth}{%
+  \begin{tabular}{|c|c|c|c|c|}
+
+    \hline
+
+      & \begin{tabular}{c} 前アプローチの \\ 検出結果 \end{tabular}
+      & 検出結果
+      & \begin{tabular}{c} 検出された \\ グループ数 \end{tabular}
+      & 実際のグループ数との差 \\
+    
+    \hline
+
+    $\vcenter{\hbox{理想的な状態}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_08_vertical_fragment_consolidation/queue_video/detection_outputs/annotated_images/t_012s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_09_orientation_distance_grouping/queue_video/detection_outputs/annotated_images/t_012s.png}}}$ &
+      \jsonlen{experiment/results/approach_09_orientation_distance_grouping/queue_video/detection_outputs/labels/t_012s.json} &
+      % 符号と数値
+        \ifnum\numexpr\jsonlen{experiment/results/approach_09_orientation_distance_grouping/queue_video/detection_outputs/labels/t_012s.json} - \gtvideoideal\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_09_orientation_distance_grouping/queue_video/detection_outputs/labels/t_012s.json} - \gtvideoideal\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{オクルージョン発生時}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_08_vertical_fragment_consolidation/queue_video/detection_outputs/annotated_images/t_017s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_09_orientation_distance_grouping/queue_video/detection_outputs/annotated_images/t_017s.png}}}$ &
+      \jsonlen{experiment/results/approach_09_orientation_distance_grouping/queue_video/detection_outputs/labels/t_017s.json} &
+      % 符号と数値
+        \ifnum\numexpr\jsonlen{experiment/results/approach_09_orientation_distance_grouping/queue_video/detection_outputs/labels/t_017s.json} - \gtvideoocclusion\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_09_orientation_distance_grouping/queue_video/detection_outputs/labels/t_017s.json} - \gtvideoocclusion\relax \\
+    
+    \hline
+    
+  \end{tabular}%
+  }
+\end{table}
 
 \subsubsection{アプローチ08との比較}
 バウンディングボックスの位置に加えて身体の向きと列線の構造を考慮したことで、大きく蛇行する列や非常に長く横方向に伸びる待機列であっても、列の進行方向に対する正確な横並びグループを判定することが可能となった。これにより、列の折り返し部分で前後に隣接する無関係な人物同士を誤って同一グループに統合する問題が解消された。
 
-\subsubsection{判明した課題}
+\subsection{課題}
+アプローチ09の明瞭となった課題は以下の通りである。
+
 \begin{enumerate}
     \item \textbf{列前後で会話・交差するグループに対する判定の不全}：
     待機列内においては、必ずしも全員が進行方向を向いて綺麗に横並びで並ぶわけではなく、会話やスマートフォンの操作等によって前後の列に跨って向き合うグループが存在する。このような前後の動きや対話関係を持つ連れを検知できない課題が判明した。
     \item \textbf{複数パイプライン（一次検出・ポーズ検出）による計算オーバーヘッド}：
     バウンディングボックスの重複排除および向き取得のために複数回ポーズ検出 Worker や前処理を経由するため、パイプライン全体として依然として計算ステップ数が多く、処理効率のさらなる改善が求められた。
 \end{enumerate}
+
+\clearpage % 視認性のために改ページ挿入

@@ -12,15 +12,127 @@
     \item \textbf{テクスチャキャッシュの即時解放}：入力画像の内容およびサイズが毎フレーム変動することに伴う不必要なキャッシュの蓄積を完全に防ぐため、\texttt{WEBGL\_DELETE\_TEXTURE\_THRESHOLD} を \texttt{0} に設定し、使い捨てテクスチャの即時破棄を強制した。
 \end{itemize}
 
-\subsection{結果およびアプローチ07との比較・課題}
+\subsection{実験結果およびアプローチ07との比較・課題}
+
+\subsubsection{実験結果}
+静止画を入力データとして検証を行った際の実験結果を表\ref{tab:approach08_image_results}に示す。
+なお、いずれの実験結果においても、緑色のバウンディングボックスは検出された人物、赤色のバウンディングボックスは同定されたグループを示している。
+
+\begin{table}[H]
+  \centering
+  \small
+  \caption{アプローチ08：実験結果の比較（静止画）}
+  \label{tab:approach08_image_results}
+  \adjustbox{max width=\textwidth}{%
+  \begin{tabular}{|c|c|c|c|c|}
+    
+    \hline
+
+      & \begin{tabular}{c} 前アプローチの \\ 検出結果 \end{tabular}
+      & 検出結果
+      & \begin{tabular}{c} 検出された \\ グループ数 \end{tabular}
+      & 実際のグループ数との差 \\
+    
+    \hline
+    
+    $\vcenter{\hbox{標準状態}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_07_deduplication/standard/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_08_vertical_fragment_consolidation/standard/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_08_vertical_fragment_consolidation/standard/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_08_vertical_fragment_consolidation/standard/detection_outputs/labels/t_001s.json} - \gtstandard\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_08_vertical_fragment_consolidation/standard/detection_outputs/labels/t_001s.json} - \gtstandard\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{密集状態}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_07_deduplication/crowded/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_08_vertical_fragment_consolidation/crowded/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_08_vertical_fragment_consolidation/crowded/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_08_vertical_fragment_consolidation/crowded/detection_outputs/labels/t_001s.json} - \gtcrowded\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_08_vertical_fragment_consolidation/crowded/detection_outputs/labels/t_001s.json} - \gtcrowded\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{非組織群集}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_07_deduplication/strangers/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_08_vertical_fragment_consolidation/strangers/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_08_vertical_fragment_consolidation/strangers/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_08_vertical_fragment_consolidation/strangers/detection_outputs/labels/t_001s.json} - \gtstrangers\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_08_vertical_fragment_consolidation/strangers/detection_outputs/labels/t_001s.json} - \gtstrangers\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{視覚的クラッター}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_07_deduplication/various_clothes/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_08_vertical_fragment_consolidation/various_clothes/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_08_vertical_fragment_consolidation/various_clothes/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_08_vertical_fragment_consolidation/various_clothes/detection_outputs/labels/t_001s.json} - \gtvariousclothes\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_08_vertical_fragment_consolidation/various_clothes/detection_outputs/labels/t_001s.json} - \gtvariousclothes\relax \\
+    
+    \hline
+
+  \end{tabular}
+  }
+\end{table}
+
+動画を入力データとして検証を行った際の実験結果を表\ref{tab:approach08_video_results}に示す。最も理想的な入力フレームおよびオクルージョン発生時のフレームを掲載している。
+
+\begin{table}[H]
+  \centering
+  \small
+  \caption{アプローチ08：実験結果の比較（動画）}
+  \label{tab:approach08_video_results}
+  \adjustbox{max width=\textwidth}{%
+  \begin{tabular}{|c|c|c|c|c|}
+
+    \hline
+
+      & \begin{tabular}{c} 前アプローチの \\ 検出結果 \end{tabular}
+      & 検出結果
+      & \begin{tabular}{c} 検出された \\ グループ数 \end{tabular}
+      & 実際のグループ数との差 \\
+    
+    \hline
+
+    $\vcenter{\hbox{理想的な状態}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_07_deduplication/queue_video/detection_outputs/annotated_images/t_012s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_08_vertical_fragment_consolidation/queue_video/detection_outputs/annotated_images/t_012s.png}}}$ &
+      \jsonlen{experiment/results/approach_08_vertical_fragment_consolidation/queue_video/detection_outputs/labels/t_012s.json} &
+      % 符号と数値
+        \ifnum\numexpr\jsonlen{experiment/results/approach_08_vertical_fragment_consolidation/queue_video/detection_outputs/labels/t_012s.json} - \gtvideoideal\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_08_vertical_fragment_consolidation/queue_video/detection_outputs/labels/t_012s.json} - \gtvideoideal\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{オクルージョン発生時}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_07_deduplication/queue_video/detection_outputs/annotated_images/t_017s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_08_vertical_fragment_consolidation/queue_video/detection_outputs/annotated_images/t_017s.png}}}$ &
+      \jsonlen{experiment/results/approach_08_vertical_fragment_consolidation/queue_video/detection_outputs/labels/t_017s.json} &
+      % 符号と数値
+        \ifnum\numexpr\jsonlen{experiment/results/approach_08_vertical_fragment_consolidation/queue_video/detection_outputs/labels/t_017s.json} - \gtvideoocclusion\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_08_vertical_fragment_consolidation/queue_video/detection_outputs/labels/t_017s.json} - \gtvideoocclusion\relax \\
+    
+    \hline
+    
+  \end{tabular}%
+  }
+\end{table}
 
 \subsubsection{アプローチ07との比較}
 縦方向に細かく乱立していた不正なバウンディングボックスが適正に一元化され、ポーズ検出結果を保持した正確な人物領域のみが残るようになった。さらに、16ビット推論への移行とテクスチャ即時解放の導入により、長時間の連続実行においてもメモリリーク（OOM）を起こすことなく安定した高フレームレートを維持できる環境が整った。
 
-\subsubsection{判明した課題}
+\subsection{課題}
+アプローチ08の明瞭となった課題は以下の通りである。
+
 \begin{enumerate}
     \item \textbf{人物の単体検出にとどまる構造的限界}：
     バウンディングボックスの統合および最適化により個体の特定精度は大きく高まったが、依然として人物が「待機列内のどのような並び（ライン）を形成しているか」や「誰と誰が向き合ってグループを構成しているか」という集合レベルの構造判定には至っていなかった。
     \item \textbf{幾何学的情報・向き情報の未活用}：
     ポーズ検出によって得られた関節座標情報をバウンディングボックスの補正のみに使用しており、グループ判定そのものは幾何学的な位置関係やベクトルを活用できていない課題が残された。
 \end{enumerate}
+
+\clearpage % 視認性のために改ページ挿入
