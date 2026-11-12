@@ -104,7 +104,7 @@
     
     \hline
 
-    $\vcenter{\hbox{理想的な状態}}$ &
+    $\vcenter{\hbox{遮蔽物のない入力フレーム}}$ &
       $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_10_change_detection_model/queue_video/detection_outputs/annotated_images/t_012s.png}}}$ &
       $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_11_vector_orientation_grouping/queue_video/detection_outputs/annotated_images/t_012s.png}}}$ &
       \jsonlen{experiment/results/approach_11_vector_orientation_grouping/queue_video/detection_outputs/labels/t_012s.json} &
@@ -132,7 +132,7 @@
 距離ベースの並び判定に加え身体ベクトルの交差・距離閾値判定を導入したことで、前後の列に跨がって会話する人物群や斜めに向き合う連れ同士を正確に同一グループとして抽出可能となった。待機列内で自然に発生する多彩なコミュニケーション形態に対応した高精度なグループ化が実現された。
 
 \subsection{課題}
-アプローチ11において明瞭となった課題は以下の通りである。
+アプローチ11において確認された課題は以下の通りである。
 
 \begin{enumerate}
     \item \textbf{一時的な通過者（通行人）による誤検出}：

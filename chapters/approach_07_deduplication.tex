@@ -92,7 +92,7 @@
     
     \hline
 
-    $\vcenter{\hbox{理想的な状態}}$ &
+    $\vcenter{\hbox{遮蔽物のない入力フレーム}}$ &
       $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_06_min_size_enforcer/queue_video/detection_outputs/annotated_images/t_012s.png}}}$ &
       $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_07_deduplication/queue_video/detection_outputs/annotated_images/t_012s.png}}}$ &
       \jsonlen{experiment/results/approach_07_deduplication/queue_video/detection_outputs/labels/t_012s.json} &
@@ -121,7 +121,7 @@
 また、背景領域を広く含んだバウンディングボックスが骨格範囲に基づいた領域へ補正され、後続処理へのノイズ伝播を防ぐことが可能となった。
 
 \subsection{課題}
-アプローチ07において明瞭となった課題は以下の通りである。
+アプローチ07において確認された課題は以下の通りである。
 
 \begin{enumerate}
     \item \textbf{垂直（縦）方向における誤断片化・乱立の残存}：

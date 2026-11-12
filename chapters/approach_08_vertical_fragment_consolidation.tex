@@ -98,7 +98,7 @@
     
     \hline
 
-    $\vcenter{\hbox{理想的な状態}}$ &
+    $\vcenter{\hbox{遮蔽物のない入力フレーム}}$ &
       $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_07_deduplication/queue_video/detection_outputs/annotated_images/t_012s.png}}}$ &
       $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_08_vertical_fragment_consolidation/queue_video/detection_outputs/annotated_images/t_012s.png}}}$ &
       \jsonlen{experiment/results/approach_08_vertical_fragment_consolidation/queue_video/detection_outputs/labels/t_012s.json} &
@@ -126,7 +126,7 @@
 縦方向に細かく乱立していた不正なバウンディングボックスが適正に一元化され、ポーズ検出結果を保持した正確な人物領域のみが残るようになった。さらに、16ビット推論への移行とテクスチャ即時解放の導入により、長時間の連続実行においてもメモリリーク（OOM）を起こすことなく安定した高フレームレートを維持できる環境が整った。
 
 \subsection{課題}
-アプローチ08において明瞭となった課題は以下の通りである。
+アプローチ08において確認された課題は以下の通りである。
 
 \begin{enumerate}
     \item \textbf{人物の単体検出にとどまる構造的限界}：
