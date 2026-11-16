@@ -1,9 +1,9 @@
 \section{アプローチ10：ONNX Runtime WebによるYOLOv12 Nanoへの検出モデル移行}
 
 \subsection{手法の概要}
-従来の人物検出モデルの検出精度の課題を解消するため、アプローチ10では既存の推論パイプラインの基本構造を維持しつつ、人物検出モデルを ONNX Runtime Web 上で動作する YOLOv12 Nano へと刷新した。
+従来の人物検出モデルの検出漏れや多重検出といった課題を解消するため、アプローチ10では既存の推論パイプラインの基本構造を維持しつつ、人物検出モデルを ONNX Runtime Web 上で動作する YOLOv12 Nano へと変更した。
 MediaPipeとは異なり ONNX Runtime Web は DOM に依存しないため、人物検出処理自体を完全に Web Worker（\texttt{peopleDetectionWorker.ts}）へと移行させた。
-これに伴い、\texttt{workerManager.ts} が人物検出 Worker も一元管理する構造に整理し、従来のポーズ検出 Worker における \texttt{PROCESS\_CANDIDATE} メッセージ仕様は廃止した。
+これに伴い、\texttt{workerManager.ts} が人物検出 Worker も一元管理する構造に再構成し、従来のポーズ検出 Worker における \texttt{PROCESS\_CANDIDATE} メッセージ仕様は廃止した。
 
 \subsection{実験結果およびアプローチ09との比較・課題}
 
@@ -116,14 +116,14 @@ MediaPipeとは異なり ONNX Runtime Web は DOM に依存しないため、人
 \end{table}
 
 \subsubsection{アプローチ09との比較}
-従来の推論パイプラインを維持したまま検出モデルを YOLOv12 Nano へ刷新したことで、一次検出の精度が向上した。
+従来の推論パイプラインを維持したまま検出モデルを YOLOv12 Nano へ変更したことで、検出の精度が向上した。
 
 \subsection{課題}
 アプローチ10において確認された課題は以下の通りである。
 
 \begin{enumerate}
     \item \textbf{待機列内における前後跨ぎグループの判定漏れ}：
-    検出精度は改善されたものの、アプローチ09同様、物理的な横並び距離だけでは「スマートフォン操作や会話によって前後の列に跨って構成されているグループ（カップルや複数人のグループ）」を識別できない問題は未解決のまま残された。
+    人物の検出漏れや多重検出は抑制されたものの、アプローチ09同様、物理的な横並び距離だけでは前後の列に跨って構成されているグループ（カップルや複数人のグループ）を識別できない問題は未解決のまま残された。
 \end{enumerate}
 
 \clearpage
