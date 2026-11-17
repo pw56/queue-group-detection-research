@@ -1,27 +1,137 @@
-\section{アプローチ05（オブジェクト検出とポーズ検出のハイブリッド手法）}
+\section{アプローチ05：オブジェクト検出とポーズ検出のハイブリッド手法}
 
 \subsection{手法の概要}
-アプローチ04で判明した「高解像度画像全体に対する直接的なポーズ推定の計算コスト」および「密集環境でのキーポイント交錯」を解決するため、アプローチ05では一次検出として信頼度閾値を低めに設定したオブジェクト検出を行い、その切り出し領域（ROI）に対してポーズ推定を適用するハイブリッド検出パイプラインを導入した。
+アプローチ04で判明した「広角・俯瞰画像におけるポーズ推定モデルの適用限界（解像度不足による精度低下）」を解決するため、アプローチ05では一次検出として信頼度閾値を低く設定したオブジェクト検出を行い、その切り出し領域（ROI）に対してポーズ推定を適用するハイブリッド検出パイプラインを導入した。
 
-後ろ姿対策と体の向き検出を兼ねるため、ポーズ推定モデルには MoveNet Lightning を採用した。処理の効率化とエッジ環境（Webブラウザ）におけるレスポンス向上を図るため、以下の構成および並行・メモリ最適化を実装した。
+ポーズ推定モデルには MoveNet Lightning を採用した。処理の効率化とエッジ環境（Webブラウザ）におけるレスポンス向上を図るため、以下の構成および並行・メモリ最適化を実装した。
 
 \begin{itemize}
-    \item \textbf{切り出しと所有権移転}：画像の切り出しは、固定サイズの非表示キャンバスおよび \texttt{createImageBitmap} を用いてバウンディングボックスの範囲を指定して実行し、Web Worker 間では転送（Transferable Objects）による所有権移転を活用して不要なデータコピーやメモリアロケーションを削減した。
+    \item \textbf{切り出しと所有権移転}：画像の切り出しは、固定サイズの非表示キャンバスおよび \texttt{createImageBitmap} を用いてバウンディングボックスの範囲を指定して実行し、Web Worker 間では転送（Transferable Objects）による所有権移転を活用してスレッド間のデータコピーやメモリアロケーションを削減した。
     \item \textbf{サイズ同期}：Worker Manager から各 Worker へ初回起動時に元画像のサイズを伝達し、内部で保持する固定キャンバスの解像度を事前に決定させた。
     \item \textbf{切り出しマージン}：人物が密集している状況においても隣接オブジェクトの混入を避けるため、画像切り出し時の余白（マージン）は一切付与しない仕様とした。
-    \item \textbf{固定Workerプール}：多数の候補に対する処理遅延やリソース暴走を防ぐため、並列実行を行う Worker プール数を固定（4コアを目安）とし、全体の要求を制御した。
+    \item \textbf{固定Workerプール}：メモリ消費量の増大やスレッドの過剰生成による処理遅延を防ぐため、並列実行を行う Worker プール数を固定（4コアを目安）とし、全体の要求を制御した。
     \item \textbf{非同期パイプライン}：源流（メイン処理）の \texttt{Promise.all} にてバウンディングボックス列挙で得られた候補を一括生成し、同一の生成済みキャンバスからビットマップで切り出したうえで Worker Manager へ同時投入した。さらに、得られた処理結果（Worker からの返却データ）はメイン側で元画像の座標系へと逆変換・復元した。
 \end{itemize}
 
-\subsection{結果およびアプローチ04との比較・課題}
+\subsection{実験結果およびアプローチ04との比較・課題}
+
+\subsubsection{実験結果}
+静止画を入力データとして検証を行った際の実験結果を表\ref{tab:approach05_image_results}に示す。
+なお、いずれの実験結果においても、緑色のバウンディングボックスは検出された人物、赤色のバウンディングボックスは同定されたグループを示している。
+
+\begin{table}[H]
+  \centering
+  \small
+  \caption{アプローチ05：実験結果の比較（静止画）}
+  \label{tab:approach05_image_results}
+  \adjustbox{max width=\textwidth}{%
+  \begin{tabular}{|c|c|c|c|c|}
+    
+    \hline
+
+      & \begin{tabular}{c} 前アプローチの \\ 検出結果 \end{tabular}
+      & 検出結果
+      & \begin{tabular}{c} 検出された \\ グループ数 \end{tabular}
+      & 実際のグループ数との差 \\
+    
+    \hline
+    
+    $\vcenter{\hbox{標準状態}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_04_pose_detection/standard/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_05_object_pose_hybrid/standard/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_05_object_pose_hybrid/standard/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_05_object_pose_hybrid/standard/detection_outputs/labels/t_001s.json} - \gtstandard\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_05_object_pose_hybrid/standard/detection_outputs/labels/t_001s.json} - \gtstandard\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{密集状態}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_04_pose_detection/crowded/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_05_object_pose_hybrid/crowded/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_05_object_pose_hybrid/crowded/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_05_object_pose_hybrid/crowded/detection_outputs/labels/t_001s.json} - \gtcrowded\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_05_object_pose_hybrid/crowded/detection_outputs/labels/t_001s.json} - \gtcrowded\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{非組織群集}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_04_pose_detection/strangers/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_05_object_pose_hybrid/strangers/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_05_object_pose_hybrid/strangers/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_05_object_pose_hybrid/strangers/detection_outputs/labels/t_001s.json} - \gtstrangers\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_05_object_pose_hybrid/strangers/detection_outputs/labels/t_001s.json} - \gtstrangers\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{視覚的クラッター}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_04_pose_detection/various_clothes/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_05_object_pose_hybrid/various_clothes/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_05_object_pose_hybrid/various_clothes/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_05_object_pose_hybrid/various_clothes/detection_outputs/labels/t_001s.json} - \gtvariousclothes\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_05_object_pose_hybrid/various_clothes/detection_outputs/labels/t_001s.json} - \gtvariousclothes\relax \\
+    
+    \hline
+
+  \end{tabular}
+  }
+\end{table}
+
+動画を入力データとして検証を行った際の実験結果を表\ref{tab:approach05_video_results}に示す。遮蔽物のない入力フレームおよびオクルージョン発生時のフレームを掲載している。
+
+\begin{table}[H]
+  \centering
+  \small
+  \caption{アプローチ05：実験結果の比較（動画）}
+  \label{tab:approach05_video_results}
+  \adjustbox{max width=\textwidth}{%
+  \begin{tabular}{|c|c|c|c|c|}
+
+    \hline
+
+      & \begin{tabular}{c} 前アプローチの \\ 検出結果 \end{tabular}
+      & 検出結果
+      & \begin{tabular}{c} 検出された \\ グループ数 \end{tabular}
+      & 実際のグループ数との差 \\
+    
+    \hline
+
+    $\vcenter{\hbox{遮蔽物のない入力フレーム}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_04_pose_detection/queue_video/detection_outputs/annotated_images/t_012s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_05_object_pose_hybrid/queue_video/detection_outputs/annotated_images/t_012s.png}}}$ &
+      \jsonlen{experiment/results/approach_05_object_pose_hybrid/queue_video/detection_outputs/labels/t_012s.json} &
+      % 符号と数値
+        \ifnum\numexpr\jsonlen{experiment/results/approach_05_object_pose_hybrid/queue_video/detection_outputs/labels/t_012s.json} - \gtvideoideal\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_05_object_pose_hybrid/queue_video/detection_outputs/labels/t_012s.json} - \gtvideoideal\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{オクルージョン発生時}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_04_pose_detection/queue_video/detection_outputs/annotated_images/t_017s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_05_object_pose_hybrid/queue_video/detection_outputs/annotated_images/t_017s.png}}}$ &
+      \jsonlen{experiment/results/approach_05_object_pose_hybrid/queue_video/detection_outputs/labels/t_017s.json} &
+      % 符号と数値
+        \ifnum\numexpr\jsonlen{experiment/results/approach_05_object_pose_hybrid/queue_video/detection_outputs/labels/t_017s.json} - \gtvideoocclusion\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_05_object_pose_hybrid/queue_video/detection_outputs/labels/t_017s.json} - \gtvideoocclusion\relax \\
+    
+    \hline
+    
+  \end{tabular}%
+  }
+\end{table}
 
 \subsubsection{アプローチ04との比較}
-画面全体へ直接ポーズ推定を適用していたアプローチ04と比較し、一次検出で絞り込んだ領域のみに MoveNet Lightning を適用することで計算コストが劇的に削減された。また、所有権移転や Worker プールの活用により、UIスレッドをブロックすることなく実用に耐えうる処理スピードと低信頼度フィルタリングの精度を両立させた。
+画面全体に対してポーズ推定のみを適用していたアプローチ04と比較し、オブジェクト検出を併用して切り出した領域へポーズ推定を適用することで、前アプローチよりも人物およびグループの検出精度が向上した。
 
-\subsubsection{判明した課題}
+\subsection{課題}
+アプローチ05において確認された課題は以下の通りである。
+
 \begin{enumerate}
     \item \textbf{小サイズバウンディングボックスにおける推定精度の低下}：
-    一次検出で列挙された人物領域が小さすぎる場合、MoveNet Lightning の入力要求サイズを満たせず、キーポイントの検出精度が著しく低下する（または検出自体に失敗する）問題が判明した。
-    \item \textbf{重複するバウンディングボックスの処理負荷}：
-    低信頼度で手当たり次第に候補を抽出するため、同一人物に対して複数の領域が切り出され、Worker プールへ無駄なタスクが集中する問題が浮彫りとなった。
+    一次検出で列挙された人物領域が小さい場合、MoveNet Lightning の入力要求サイズを満たせず、キーポイントの検出精度が低下し、場合によっては検出自体に失敗する問題が判明した。
 \end{enumerate}
+
+\clearpage

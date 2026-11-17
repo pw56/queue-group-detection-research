@@ -1,19 +1,132 @@
-\section{アプローチ02（事前指定の関心領域（ROI）による空間制限手法）}
+\section{アプローチ02：事前指定の関心領域（ROI）による空間制限手法}
 
 \subsection{手法の概要}
-アプローチ02では、アプローチ01で判明した「画角全体のノイズおよび待機列領域外の人物誤検出」という課題を解決するため、源流の入力画像に対して待機列が存在する領域のみを切り取る関心領域（ROI: Region of Interest）処理を導入した。
+アプローチ02では、アプローチ01で判明した「画角全体のノイズおよび待機列領域外の人物誤検出」という課題を解決するため、元の入力画像に対して待機列が存在する領域のみを切り取る関心領域（ROI: Region of Interest）処理を導入した。
 
 画角内に事前に多角形または矩形のROIを設定し、入力画像フレームからROI領域外の背景や周辺通路を物理的に切り落とすか、または領域外に位置する検出結果を事前にフィルタリング・無効化する構造とした。
 
-\subsection{結果およびアプローチ01との比較・課題}
+\subsection{実験結果およびアプローチ01との比較・課題}
+
+\subsubsection{実験結果}
+静止画を入力データとして検証を行った際の実験結果を表\ref{tab:approach02_image_results}に示す。
+なお、いずれの実験結果においても、緑色のバウンディングボックスは検出された人物、赤色のバウンディングボックスは同定されたグループを示している。
+
+\begin{table}[H]
+  \centering
+  \small
+  \caption{アプローチ02：実験結果の比較（静止画）}
+  \label{tab:approach02_image_results}
+  \adjustbox{max width=\textwidth}{%
+  \begin{tabular}{|c|c|c|c|c|}
+    
+    \hline
+
+      & \begin{tabular}{c} 前アプローチの \\ 検出結果 \end{tabular}
+      & 検出結果
+      & \begin{tabular}{c} 検出された \\ グループ数 \end{tabular}
+      & 実際のグループ数との差 \\
+    
+    \hline
+    
+    $\vcenter{\hbox{標準状態}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/standard/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_02_roi/standard/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_02_roi/standard/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_02_roi/standard/detection_outputs/labels/t_001s.json} - \gtstandard\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_02_roi/standard/detection_outputs/labels/t_001s.json} - \gtstandard\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{密集状態}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/crowded/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_02_roi/crowded/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_02_roi/crowded/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_02_roi/crowded/detection_outputs/labels/t_001s.json} - \gtcrowded\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_02_roi/crowded/detection_outputs/labels/t_001s.json} - \gtcrowded\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{非組織群集}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/strangers/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_02_roi/strangers/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_02_roi/strangers/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_02_roi/strangers/detection_outputs/labels/t_001s.json} - \gtstrangers\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_02_roi/strangers/detection_outputs/labels/t_001s.json} - \gtstrangers\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{視覚的クラッター}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/various_clothes/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_02_roi/various_clothes/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_02_roi/various_clothes/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_02_roi/various_clothes/detection_outputs/labels/t_001s.json} - \gtvariousclothes\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_02_roi/various_clothes/detection_outputs/labels/t_001s.json} - \gtvariousclothes\relax \\
+    
+    \hline
+
+  \end{tabular}
+  }
+\end{table}
+
+動画を入力データとして検証を行った際の実験結果を表\ref{tab:approach02_video_results}に示す。遮蔽物のない入力フレームおよびオクルージョン発生時のフレームを掲載している。
+
+\begin{table}[H]
+  \centering
+  \small
+  \caption{アプローチ02：実験結果の比較（動画）}
+  \label{tab:approach02_video_results}
+  \adjustbox{max width=\textwidth}{%
+  \begin{tabular}{|c|c|c|c|c|}
+
+    \hline
+
+      & \begin{tabular}{c} 前アプローチの \\ 検出結果 \end{tabular}
+      & 検出結果
+      & \begin{tabular}{c} 検出された \\ グループ数 \end{tabular}
+      & 実際のグループ数との差 \\
+    
+    \hline
+
+    $\vcenter{\hbox{遮蔽物のない入力フレーム}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/queue_video/detection_outputs/annotated_images/t_012s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_02_roi/queue_video/detection_outputs/annotated_images/t_012s.png}}}$ &
+      \jsonlen{experiment/results/approach_02_roi/queue_video/detection_outputs/labels/t_012s.json} &
+      % 符号と数値
+        \ifnum\numexpr\jsonlen{experiment/results/approach_02_roi/queue_video/detection_outputs/labels/t_012s.json} - \gtvideoideal\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_02_roi/queue_video/detection_outputs/labels/t_012s.json} - \gtvideoideal\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{オクルージョン発生時}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_01_baseline/queue_video/detection_outputs/annotated_images/t_017s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_02_roi/queue_video/detection_outputs/annotated_images/t_017s.png}}}$ &
+      \jsonlen{experiment/results/approach_02_roi/queue_video/detection_outputs/labels/t_017s.json} &
+      % 符号と数値
+        \ifnum\numexpr\jsonlen{experiment/results/approach_02_roi/queue_video/detection_outputs/labels/t_017s.json} - \gtvideoocclusion\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_02_roi/queue_video/detection_outputs/labels/t_017s.json} - \gtvideoocclusion\relax \\
+    
+    \hline
+    
+  \end{tabular}%
+  }
+\end{table}
 
 \subsubsection{アプローチ01との比較}
-ROI処理の適用により、待機列の外部を移動する通行人や背景の静止オブジェクトに対する誤検出が大幅に削減された。計測対象範囲が厳密に限定されたことで、待機列内の実人数に近い精度の高い検出領域を確保することが可能となった。
+ROI処理の適用により、待機列の外部を移動する通行人や背景の静止オブジェクトに対する誤検出が削減された。
+検出対象を待機列の領域内に限定したことで、アプローチ01と比較して、実際の待機列の構成に即した検出結果が得られた。
 
-\subsubsection{判明した課題}
+\subsection{課題}
+アプローチ02において確認された課題は以下の通りである。
+
 \begin{enumerate}
     \item \textbf{密集部位における人物切り出し・検出の限界}：
-    検出範囲を待機列内に制限したものの、オブジェクト検出モデル自体の単一バウンディングボックス抽出能力の限界により、人物が極度に近接している場所での重複検出や検出漏れ（遮蔽による影響）は依然として解決されなかった。
+    検出範囲を待機列内に制限したものの、オブジェクト検出モデル自体の単一バウンディングボックス抽出能力の限界により、人物同士が密接している箇所での重複検出や検出漏れ（遮蔽による影響）は解消には至らなかった。
     \item \textbf{検出体の姿勢・向き情報不足}：
     バウンディングボックスの二次元領域のみに依存しているため、人物が前後どちらを向いているか、あるいは横並びで会話しているか等の幾何学的関係性を判別する情報が不足していた。
 \end{enumerate}
+
+\clearpage

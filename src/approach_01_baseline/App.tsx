@@ -14,7 +14,7 @@ import {
 // 動画用のグローバルなタイムスタンプ
 // 動画のEffect内の変数だとバウンディングボックスの方で使えないのでグローバル
 let videoTimestamp: number = -1;
-const imageTimestamp: number = 0; // 画像のタイムスタンプは固定
+const imageTimestamp: number = 1; // 画像のタイムスタンプは固定
 
 const App = () => {
   // アップロードされたメディアの管理用

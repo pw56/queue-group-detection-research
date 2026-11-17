@@ -1,32 +1,213 @@
-\section{アプローチ12（複数フレーム情報を併用した時空間トラッキングおよび通行人誤検出防止手法）}
+\section{アプローチ12：複数フレーム情報を併用した時空間トラッキングおよび通行人誤検出防止手法}
 
 \subsection{手法の概要}
-アプローチ11までの単一フレーム処理において判明した「待機列近傍を一時的に通過する通行人に対する誤検出・誤グループ化」を防ぐため、アプローチ12では前後の複数フレーム情報を組み合わせた動的トラッキング手法を導入した。前提として関心領域（ROI）処理により画面端の僅かな領域にしか通行人は映り込まない設計となっているが、本アプローチによりさらなる誤判定防止の頑健性を担保した。
-
-処理システム全体におけるFPSを適応的に計測・維持するため、トップレベルに \texttt{measureFps.ts} を配置し、内部状態を共通保持させた。タイムスタンプの記録には、メモリ消費を最適化した64ビット浮動小数点数（\texttt{Float64Array}）によるリングバッファ構造（\texttt{ringBuffer.ts}）を使用している。
-
+アプローチ11までの単一フレーム処理において判明した「待機列近傍を一時的に通過する通行人に対する誤検出・誤グループ化」を防ぐため、アプローチ12では前後の複数フレーム情報を組み合わせた動的トラッキング手法を導入した。
+前提として関心領域（ROI）処理により通行人の映り込みを画面端の領域のみに限定する設計としているが、本アプローチによりそれらの誤判定に対する頑健性の向上を図った。
+処理システム全体におけるFPSを適応的に計測・維持し、処理過程での移動速度の予測に使用した。
+タイムスタンプの記録には、64ビット浮動小数点数によるリングバッファ構造を使用している。
 本アプローチにおける追跡判定および色空間を用いた特徴抽出の具体的仕様は以下の通りである。
 
 \begin{itemize}
     \item \textbf{動的待機列判定とカルマンフィルタの適用}：
-    人物検出の完了後かつグループ検出の前段階において、追跡配列を更新する。FPSから動的に割り出される所定の滞留時間閾値を超えて、一定割合（動的なバウンディングボックスサイズから算出される許容移動範囲）の位置に留まり続けている個体を「待機列構成員」として判定する。位置推定および補正にはカルマンフィルタ（\texttt{KalmanFilterForPeople.ts}）を導入した。
+    人物検出の完了後かつグループ検出の前段階において、追跡配列を更新する。
+    FPSから動的に割り出される所定の滞留時間閾値を超えて、一定割合（動的なバウンディングボックスサイズから算出される許容移動範囲）の位置に留まり続けている個体を「待機列構成員」として判定する。
+    位置推定および補正にはカルマンフィルタを導入した。
     
     \item \textbf{身体部位別カラー特徴抽出およびHSV比較}：
-    追跡精度を強化するため、ポーズ検出で得られた身体部位（両肩・両腰で形成される胴体四角形の内側領域、および顔領域）からピクセル平均色を抽出・保持する。背景や手足など変化の激しい部分を除外し、カメラからの距離変化に対応できるよう領域切り出しサイズはバウンディングボックスの大きさに応じて動的に決定した。照明・影の影響を排除するため、色空間はRGBではなくHSVを使用し、彩度（S）の変動に連動して色相（H）と明度（V）の比較重みを動的に変更する判定ロジックを適用した。なお、切り出し画像の色抽出処理には \texttt{imageHelper} の固定サイズキャンバスを使い回すことで、メモリリークを完全に防止した。
-
-    \item \textbf{TrackedPerson クラスによるライフサイクル管理}：
-    各人物の追跡状態管理のため \texttt{TrackedPerson} クラスを追加した。コンストラクタで一意の ID（\texttt{crypto.randomUUID()}）を生成して \texttt{Person} 型に付与するとともに、FPSに連動した一定フレーム数以上見失った個体を使い回し可能な追跡配列から自動削除・解放する設計とした。
+    追跡精度を向上させるため、ポーズ検出で得られた身体部位（両肩・両腰で形成される胴体四角形の内側領域、および顔領域）からピクセル平均色を抽出・保持する。
+    背景や手足などフレーム間の位置や形状の変動が大きい部分を除外し、カメラからの距離変化に対応できるよう領域切り出しサイズはバウンディングボックスの大きさに応じて動的に決定した。
+    照明・影の影響を低減するため、色空間はRGBではなくHSVを使用し、彩度（S）の変動に連動して色相（H）と明度（V）の比較重みを動的に変更する判定ロジックを適用した。
 \end{itemize}
 
-\subsection{結果およびアプローチ11との比較・課題}
+\subsubsection{待機列人物トラッキングおよびフィルタリングアルゴリズム}
+連続するフレーム画像間において検出された人物群に対し、カルマンフィルターによる位置予測およびHSV色空間での特徴量比較を組み合わせて人物の追跡を行い、待機列に一定時間留まっている人物のみを抽出・判定する。
+
+\paragraph{(1) カルマンフィルター（位置および速度の推定）}
+各人物のバウンディングボックス中心座標 $\mathbf{P} = (x, y)$ を観測値とし、状態ベクトル $\mathbf{x}_k = (x, y, v_x, v_y)^T$ における予測および更新を行う。
+
+\textbf{状態遷移モデル}:
+$$\mathbf{x}_k^- = \mathbf{F} \mathbf{x}_{k-1}$$
+
+$$\mathbf{P}_k^- = \mathbf{F} \mathbf{P}_{k-1} \mathbf{F}^T + \mathbf{Q}$$
+
+ここで、時間差 $\Delta t$ に応じた状態遷移行列 $\mathbf{F}$ は以下の通りである。
+
+$$\mathbf{F} = \begin{bmatrix} 
+1 & 0 & \Delta t & 0 \\
+0 & 1 & 0 & \Delta t \\
+0 & 0 & 1 & 0 \\
+0 & 0 & 0 & 1 
+\end{bmatrix}$$
+
+\textbf{観測更新モデル}:
+観測行列 $\mathbf{H}$ および観測ノイズ共分散 $\mathbf{R}$ に基づき、観測値 $\mathbf{z}_k = (z_x, z_y)^T$ により更新を行う。
+
+$$\mathbf{K}_k = \mathbf{P}_k^- \mathbf{H}^T (\mathbf{H} \mathbf{P}_k^- \mathbf{H}^T + \mathbf{R})^{-1}$$
+
+$$\mathbf{x}_k = \mathbf{x}_k^- + \mathbf{K}_k (\mathbf{z}_k - \mathbf{H} \mathbf{x}_k^-)$$
+
+$$\mathbf{P}_k = (\mathbf{I} - \mathbf{K}_k \mathbf{H}) \mathbf{P}_k^-$$
+
+\paragraph{(2) HSV色空間における動的特徴量比較}
+照明変化や影の影響を抑制するため、胴体四隅および顔の各領域における平均HSV値 $\mathbf{C} = (h, s, v)$ を抽出して色距離を算出する。
+
+\textbf{彩度依存の重み設定}:
+彩度 $s$ の大きさに応じて色相 $h$ と明度 $v$ の判定比重を動的に調整する。
+
+$$w_{\text{hue}} = \min(s_A, s_B)$$
+
+$$w_{\text{val}} = 1.0 - 0.7 \times w_{\text{hue}}$$
+
+\textbf{色相距離および統合色距離計算}:
+色相は円周上の値であるため、最短距離を考慮した $\Delta h$ を算出する。
+
+$$\Delta h = \min(\vert{}h_A - h_B\vert{}, 1.0 - \vert{}h_A - h_B\vert{}) \times 2.0$$
+
+$$\text{Distance}(\mathbf{C}_A, \mathbf{C}_B) = \frac{w_{\text{hue}} \Delta h + w_{\text{val}} \vert{}v_A - v_B\vert{}}{w_{\text{hue}} + w_{\text{val}}}$$
+
+\paragraph{(3) 動的探索領域半径およびマッチング判定}
+フレームレート（$\text{FPS}$）およびバウンディングボックスサイズに基づき、フレーム間における動的探索半径 $R_{\text{search}}$ を決定する。
+
+$$R_{\text{search}} = \max\left(20, \min(w_{\text{bbox}}, h_{\text{bbox}}) \times \frac{30}{\text{FPS}}\right)$$
+
+\textbf{統合スコア計算}:
+前フレームでの予測位置との距離 $d_{\text{pos}}$ および色距離 $\text{Distance}_{\text{color}}$ からマッチングスコア $S$ を評価する。
+
+$$S = \frac{d_{\text{pos}}}{R_{\text{search}}} + \text{Distance}_{\text{color}}$$
+
+\paragraph{(4) 待機列判定条件}
+追跡対象の人物が以下の条件を満たす場合、待機列構成員として判定する。
+
+\begin{enumerate}
+    \item \textbf{滞在時間閾値判定}: 最初に検出されてからの経過時間 $T_{\text{in\_view}} \ge \mathtt{QUEUE\_STATIONARY\_TIME\_THRESHOLD\_MS}$
+    \item \textbf{移動速度閾値判定}: 推定移動速度 $v = \sqrt{v_x^2 + v_y^2}$ が動的速度閾値以下であること
+
+$$v < (S_{\text{bbox}} \times 0.1) \times \frac{\text{FPS}}{30}$$
+
+（ただし $S_{\text{bbox}} = \min(w_{\text{bbox}}, h_{\text{bbox}})$）
+\end{enumerate}
+
+\subsection{実験結果およびアプローチ11との比較・課題}
+
+\subsubsection{実験結果}
+静止画を入力データとして検証を行った際の実験結果を表\ref{tab:approach12_image_results}に示す。
+なお、いずれの実験結果においても、緑色のバウンディングボックスは検出された人物、赤色のバウンディングボックスは同定されたグループを示している。
+
+\begin{table}[H]
+  \centering
+  \small
+  \caption{アプローチ12：実験結果の比較（静止画）}
+  \label{tab:approach12_image_results}
+  \adjustbox{max width=\textwidth}{%
+  \begin{tabular}{|c|c|c|c|c|}
+    
+    \hline
+
+      & \begin{tabular}{c} 前アプローチの \\ 検出結果 \end{tabular}
+      & 検出結果
+      & \begin{tabular}{c} 検出された \\ グループ数 \end{tabular}
+      & 実際のグループ数との差 \\
+    
+    \hline
+    
+    $\vcenter{\hbox{標準状態}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_11_vector_orientation_grouping/standard/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_12_person_tracking/standard/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_12_person_tracking/standard/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_12_person_tracking/standard/detection_outputs/labels/t_001s.json} - \gtstandard\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_12_person_tracking/standard/detection_outputs/labels/t_001s.json} - \gtstandard\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{密集状態}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_11_vector_orientation_grouping/crowded/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_12_person_tracking/crowded/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_12_person_tracking/crowded/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_12_person_tracking/crowded/detection_outputs/labels/t_001s.json} - \gtcrowded\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_12_person_tracking/crowded/detection_outputs/labels/t_001s.json} - \gtcrowded\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{非組織群集}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_11_vector_orientation_grouping/strangers/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_12_person_tracking/strangers/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_12_person_tracking/strangers/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_12_person_tracking/strangers/detection_outputs/labels/t_001s.json} - \gtstrangers\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_12_person_tracking/strangers/detection_outputs/labels/t_001s.json} - \gtstrangers\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{視覚的クラッター}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_11_vector_orientation_grouping/various_clothes/detection_outputs/annotated_images/t_001s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_12_person_tracking/various_clothes/detection_outputs/annotated_images/t_001s.png}}}$ &
+      \jsonlen{experiment/results/approach_12_person_tracking/various_clothes/detection_outputs/labels/t_001s.json} &
+      % 符号と数値
+        \ifnum\numexpr \jsonlen{experiment/results/approach_12_person_tracking/various_clothes/detection_outputs/labels/t_001s.json} - \gtvariousclothes\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_12_person_tracking/various_clothes/detection_outputs/labels/t_001s.json} - \gtvariousclothes\relax \\
+    
+    \hline
+
+  \end{tabular}
+  }
+\end{table}
+
+動画を入力データとして検証を行った際の実験結果を表\ref{tab:approach12_video_results}に示す。遮蔽物のない入力フレームおよびオクルージョン発生時のフレームを掲載している。
+
+\begin{table}[H]
+  \centering
+  \small
+  \caption{アプローチ12：実験結果の比較（動画）}
+  \label{tab:approach12_video_results}
+  \adjustbox{max width=\textwidth}{%
+  \begin{tabular}{|c|c|c|c|c|}
+
+    \hline
+
+      & \begin{tabular}{c} 前アプローチの \\ 検出結果 \end{tabular}
+      & 検出結果
+      & \begin{tabular}{c} 検出された \\ グループ数 \end{tabular}
+      & 実際のグループ数との差 \\
+    
+    \hline
+
+    $\vcenter{\hbox{遮蔽物のない入力フレーム}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_11_vector_orientation_grouping/queue_video/detection_outputs/annotated_images/t_012s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_12_person_tracking/queue_video/detection_outputs/annotated_images/t_012s.png}}}$ &
+      \jsonlen{experiment/results/approach_12_person_tracking/queue_video/detection_outputs/labels/t_012s.json} &
+      % 符号と数値
+        \ifnum\numexpr\jsonlen{experiment/results/approach_12_person_tracking/queue_video/detection_outputs/labels/t_012s.json} - \gtvideoideal\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_12_person_tracking/queue_video/detection_outputs/labels/t_012s.json} - \gtvideoideal\relax \\
+    
+    \hline
+    
+    $\vcenter{\hbox{オクルージョン発生時}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_11_vector_orientation_grouping/queue_video/detection_outputs/annotated_images/t_017s.png}}}$ &
+      $\vcenter{\hbox{\includegraphics[width=0.25\textwidth]{experiment/results/approach_12_person_tracking/queue_video/detection_outputs/annotated_images/t_017s.png}}}$ &
+      \jsonlen{experiment/results/approach_12_person_tracking/queue_video/detection_outputs/labels/t_017s.json} &
+      % 符号と数値
+        \ifnum\numexpr\jsonlen{experiment/results/approach_12_person_tracking/queue_video/detection_outputs/labels/t_017s.json} - \gtvideoocclusion\relax>0 +\fi\the\numexpr
+        \jsonlen{experiment/results/approach_12_person_tracking/queue_video/detection_outputs/labels/t_017s.json} - \gtvideoocclusion\relax \\
+    
+    \hline
+    
+  \end{tabular}%
+  }
+\end{table}
 
 \subsubsection{アプローチ11との比較}
-時空間情報の統合、カルマンフィルタによる移動推測、およびHSV色判定の導入により、一時的に画面内を通過する通行人やカメラのブレ・ノイズによる瞬間的な誤検出が正確に排除された。これにより、実際に一定時間以上待機列内に滞留している人物のみを精緻に抽出してグループ化パイプラインへ引き渡すことが可能となった。
+時空間情報の統合、カルマンフィルタによる移動推測、およびHSV色判定の導入により、一時的に画面内を通過する通行人やカメラのブレ・ノイズによる瞬間的な誤検出が減少した。
+これにより、実際に一定時間以上待機列内に滞留している人物のみを抽出してグループ化パイプラインへ引き渡すことが可能となった。
 
-\subsubsection{判明した課題}
+\subsection{課題}
+アプローチ12において確認された課題は以下の通りである。
+
 \begin{enumerate}
-    \item \textbf{特徴量抽出・保持に伴う計算および実装コストの増大}：
-    HSV色空間への変換、胴体四角形内領域の動的クロップ、および各部色の保持・更新といった色特徴量の計算処理が追加されたことで、全体としてのアルゴリズムおよびトラッキングロジックが極めて複雑化する課題が生じた。
-    \item \textbf{特徴量非依存化の検証要求}：
-    高度な移動判定（カルマンフィルタおよびFPS連動のバウンディングボックス移動割合チェック）のみで、重い特徴量抽出処理を廃止しても同等の追跡性能・通行人排除性能が維持できるかについての比較検証の必要性が浮彫りとなった。
+    \item \textbf{人物の動作に伴う特徴量ベース追跡の困難性}：
+    待機列の映像では人物の移動や姿勢変化が継続的に発生するため、抽出される色彩などの特徴量がフレーム間で許容量を超えて変化する。
+    その結果、特徴量に依存した個体追跡ではIDの切り替わり（スイッチング）や追跡の途切れが生じ、同一人物としての継続的な対応付けの精度が低下する。
 \end{enumerate}
+
+\clearpage
