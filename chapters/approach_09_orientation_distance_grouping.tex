@@ -48,6 +48,28 @@ $$\mathbf{d}_{\text{pca}} \cdot \mathbf{v}_{\text{width}}$$
 
 $$\mathbf{d} = \begin{cases} \mathbf{d}_{\text{pca}} & (\mathbf{d}_{\text{pca}} \cdot \mathbf{v}_{\text{width}} \ge 0) \\ -\mathbf{d}_{\text{pca}} & (\mathbf{d}_{\text{pca}} \cdot \mathbf{v}_{\text{width}} < 0) \end{cases}$$
 
+\subsubsection{距離・方向ベースのグループ化アルゴリズム}
+推定された主直線 $\mathbf{L}$ の法線方向（横並び方向）および進行方向への射影座標を求め、連結成分判定（Union-Find）により横並びのグループを算出する。
+
+推定された列の方向ベクトル $\mathbf{d} = (u, v)$ と、これに直交する法線ベクトル（横並び方向） $\mathbf{n} = (-v, u)$ を用いる。
+
+各人物 $i$ の代表点 $(x_i, y_i)$ は、信頼度（ $\ge 0.5$ ）を満たす足首座標（両足首平均、または片足首）を使用する。両足首とも信頼度を満たさない場合は、バウンディングボックスの底辺中央点 $(x_i = \text{originX}_i + \frac{\text{width}_i}{2}, y_i = \text{originY}_i + \text{height}_i)$ を代替として使用する。
+
+人物 $i$ の相対位置ベクトル $\mathbf{r}_i = (x_i - \bar{x}, y_i - \bar{y})$ に対する射影：
+\begin{itemize}
+    \item \textbf{列方向成分（前後座標）}: $t_{\text{line}, i} = \mathbf{r}_i \cdot \mathbf{d}$
+    \item \textbf{法線方向成分（横並び座標）}: $t_{\text{side}, i} = \mathbf{r}_i \cdot \mathbf{n}$
+\end{itemize}
+
+\paragraph{グループ結合条件}
+2人 $A, B$ 間において、以下の2条件を満たす場合に同一グループとみなす：
+\begin{enumerate}
+    \item 法線方向距離 $\Delta t_{\text{side}} = |t_{\text{side}, A} - t_{\text{side}, B}| \le \text{sideThreshold}$
+    \item 列方向ズレ $\Delta t_{\text{line}} = |t_{\text{line}, A} - t_{\text{line}, B}| \le \text{lineThreshold}$
+\end{enumerate}
+
+非相交集合データ構造（Union-Find）を適用し、連結している人物集合を抽出して最終的なグループを構成する。
+
 \subsection{実験結果およびアプローチ08との比較・課題}
 
 \subsubsection{実験結果}
