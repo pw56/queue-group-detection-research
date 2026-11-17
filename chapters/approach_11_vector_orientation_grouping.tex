@@ -14,6 +14,42 @@
     横並びグループ内の誰か1人でも、前後列のグループに所属する人物と上記の身体向き条件を満たした場合、その前後グループ全体を同一グループとして拡張統合する。
 \end{itemize}
 
+\subsubsection{体の向きに基づく前後グループ結合アルゴリズム}
+横並び判定済みの初期グループ群に対し、体の向きベクトルを利用して、前後方向に跨がるグループを判定・結合する。
+
+\paragraph{(1) 位置および方向ベクトルの抽出}
+各人物 $i$ の中心座標 $\mathbf{P}_i = (x_i, y_i)$ および体の向きベクトルから単位向きベクトル $\mathbf{d}_i = (d_{x,i}, d_{y,i})$ を取得する。
+
+\paragraph{(2) 対向角度判定（向かい合い判定）}
+向かい合っている状態はベクトルの向きが反転（$180^\circ$ / $\pi\ \text{rad}$ 近辺）するため、角度条件を判定する：
+
+$$\theta = \arccos(\mathbf{d}_A \cdot \mathbf{d}_B) \ge \theta_{\text{thresh}}$$
+
+\paragraph{(3) 延長線（Ray）の交点計算}
+人物 $A$ および人物 $B$ の向きベクトルの延長線：
+
+$$\mathbf{L}_A(t_A) = \mathbf{P}_A + t_A \mathbf{d}_A \quad (t_A \ge 0)$$
+
+$$\mathbf{L}_B(t_B) = \mathbf{P}_B + t_B \mathbf{d}_B \quad (t_B \ge 0)$$
+
+2直線が交差するパラメータ $t_A, t_B$ を算定する：
+
+$$\text{det} = d_{A,x} d_{B,y} - d_{A,y} d_{B,x}$$
+
+$$t_A = \frac{(P_{B,x} - P_{A,x}) d_{B,y} - (P_{B,y} - P_{A,y}) d_{B,x}}{\text{det}}$$
+
+$$t_B = \frac{(P_{B,x} - P_{A,x}) d_{A,y} - (P_{B,y} - P_{A,y}) d_{A,x}}{\text{det}}$$
+
+\paragraph{(4) グループ判定条件}
+以下の条件をすべて満たす場合、前後のグループを結合する。
+
+\begin{enumerate}
+    \item \textbf{対向角度判定}: $\theta \ge \theta_{\text{thresh}}$
+    \item \textbf{前方交差判定}: $t_A \ge 0$ かつ $t_B \ge 0$
+    \item \textbf{交点距離閾値判定}: $t_A \le d_{\text{max}}$ かつ $t_B \le d_{\text{max}}$
+    （ただし $d_{\text{max}} = r_{\text{max}} \times \frac{w_A + w_B}{2}$）
+\end{enumerate}
+
 \subsection{実験結果およびアプローチ10との比較・課題}
 
 \subsubsection{実験結果}
